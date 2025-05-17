@@ -11,17 +11,15 @@ var (
 	target_db_file string
 )
 
+// Initalize db
 func InitDB() {
 	target_db_file = "./spend.db"
-	var result sql.Result
 	var err error
 
 	DB, err = sql.Open("sqlite3", target_db_file)
-	if err != nil {
-		log.Fatalf("Error opening target DB: %q", err)
-	}
+	asser_error("Error initializing DB: %q", err)
 
-	init_table := `
+	init_schema := `
 	CREATE TABLE IF NOT EXISTS daily(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		item TEXT NOT NULL,
@@ -57,6 +55,8 @@ func InitDB() {
 		overshoot_total REAL NOT NULL
 	);
 	`
+	_, err = DB.Exec(init_schema)
+	asser_error("Error executing init DB: %q", err)
 }
 
 func Create(input [5]string) [5]string {
