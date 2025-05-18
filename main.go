@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -78,6 +80,8 @@ func CreateDaily(input []string) ([]string, error) {
 	assert_error("Error preparing insert statement", err)
 	defer insert_stmt.Close()
 
+	// format date
+
 	return input, err
 }
 
@@ -102,6 +106,25 @@ func tag_get_or_insert(tag_name string) int64 {
 
 	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
 	return tag_id
+
+}
+
+// Date formatting
+func validate_date(unparsed string) {
+	split_unparsed := strings.Split(unparsed, "-")
+
+	month, err := strconv.Atoi(split_unparsed[0])
+	assert_error("Error converting month to int", err)
+	if month < 1 || month > 12 {
+		log.Fatalf("Month '%s' invalid", month)
+	}
+
+	day, err := strconv.Atoi(split_unparsed[1])
+	assert_error("Error converting day to int", err)
+
+	year, err := strconv.Atoi(split_unparsed[2])
+	assert_error("Error converting year to int", err)
+	year += 2000
 
 }
 
