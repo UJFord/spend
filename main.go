@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -44,7 +45,7 @@ func InitDB() {
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL
 	);
-	CREATE TABLE IF NOT EXISTS spend_ahead(
+	CREATE TABLE IF NOT EXISTS ahead(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		amount REAL NOT NULL
 	);
@@ -64,12 +65,18 @@ func InitDB() {
 }
 
 // Insert a spend
-func CreateDaily(input [4]string) ([4]string, error) {
+func CreateDaily(input []string) ([]string, error) {
+	item := input[0]
+	amount := input[1]
+	date := input[2]
+	tag := input[3]
 
 	insert_stmt, err := DB.Prepare(`
 		INSERT INTO daily(item, amount, date, tag)
 		VALUES (?, ?, ?, ?)
 	`)
+	assert_error("Error preparing insert statement", err)
+	defer insert_stmt.Close()
 
 	return input, err
 }
@@ -107,7 +114,14 @@ func assert_error(message string, err error) {
 
 // Validate input
 func validate_input(args []string) {
+	action := args[0]
 
+	switch action {
+	case "-cd":
+		CreateDaily(args[1:])
+	default:
+		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
+	}
 }
 
 func main() {
