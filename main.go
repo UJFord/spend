@@ -2,7 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Represent DB connection
@@ -17,7 +20,7 @@ func InitDB() {
 	var err error
 
 	DB, err = sql.Open("sqlite3", target_db_file)
-	asser_error("Error initializing DB: %q", err)
+	assert_error("Error initializing DB", err)
 
 	init_schema := `
 	CREATE TABLE IF NOT EXISTS daily(
@@ -56,17 +59,48 @@ func InitDB() {
 	);
 	`
 	_, err = DB.Exec(init_schema)
-	asser_error("Error executing init DB: %q", err)
+	assert_error("Error executing init DB", err)
 }
 
-func Create(input [5]string) [5]string {
-	return input
+// Insert a spend
+func CreateDaily(input [4]string) ([4]string, error) {
+
+	insert_stmt, err := DB.Prepare(`
+		INSERT INTO daily(item, amount, date, tag)
+		VALUES (?, ?, ?, ?)
+	`)
+
+	return input, err
+}
+
+// Inserting a tag
+func tag_get_or_insert(tag_name string) int64 {
+	var tag_id int64
+	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
+
+	if err == sql.ErrNoRows {
+		statement, err := DB.Prepare("INSERT INTO tags(name) VALUES (?)")
+		assert_error(fmt.Sprintf("Error 'preparing for insert' new tag(%s) in tags table", tag_name), err)
+		defer statement.Close()
+
+		result, err := statement.Exec(tag_name)
+		assert_error(fmt.Sprintf("Error 'inserting' new tag(%s) in tags table", tag_name), err)
+
+		last_insert_id, err := result.LastInsertId()
+		assert_error(fmt.Sprintf("Error getting LastInsertId after inserting new tag(%s)", tag_name), err)
+
+		return last_insert_id
+	}
+
+	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
+	return tag_id, nil
+
 }
 
 // log error
-func asser_error(message string, err error) {
+func assert_error(message string, err error) {
 	if err != nil {
-		log.Fatalf(message, err)
+		log.Fatalf("%s: %q", message, err)
 	}
 }
 

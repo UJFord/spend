@@ -7,10 +7,10 @@ import (
 func TestInitDB() {
 }
 
-func TestCreate(t *testing.T) {
-	spend := [5]string{"", "", "", "", ""}
-	got := Create(spend)
-	want := [5]string{"", "", "", "", ""}
+func TestCreateDaily(t *testing.T) {
+	spend := [4]string{"", "", "", ""}
+	got := CreateDaily(spend)
+	want := [4]string{"", "", "", ""}
 
 	if got != want {
 		t.Errorf("got %v want %v", got, want)
