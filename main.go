@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -73,7 +74,7 @@ func CreateDaily(input [4]string) ([4]string, error) {
 	return input, err
 }
 
-// Inserting a tag
+// Inserting or getting a tag
 func tag_get_or_insert(tag_name string) int64 {
 	var tag_id int64
 	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
@@ -93,17 +94,23 @@ func tag_get_or_insert(tag_name string) int64 {
 	}
 
 	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
-	return tag_id, nil
+	return tag_id
 
 }
 
-// log error
+// Log error
 func assert_error(message string, err error) {
 	if err != nil {
 		log.Fatalf("%s: %q", message, err)
 	}
 }
 
+// Validate input
+func validate_input(args []string) {
+
+}
+
 func main() {
-	InitDB()
+	// InitDB()
+	fmt.Println(os.Args[1:])
 }
