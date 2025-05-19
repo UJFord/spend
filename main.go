@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -69,9 +70,10 @@ func InitDB() {
 // Insert a spend
 func CreateDaily(input []string) ([]string, error) {
 	item := input[0]
-	amount := input[1]
-	date := input[2]
-	tag := input[3]
+	amount, err := strconv.Atoi(input[1])
+	assert_error(fmt.Sprintf("Error converting %s into int", input[1]), err)
+	date := validate_date(input[2])
+	tag := tag_get_or_insert(input[3])
 
 	insert_stmt, err := DB.Prepare(`
 		INSERT INTO daily(item, amount, date, tag)
@@ -79,8 +81,6 @@ func CreateDaily(input []string) ([]string, error) {
 	`)
 	assert_error("Error preparing insert statement", err)
 	defer insert_stmt.Close()
-
-	// format date
 
 	return input, err
 }
@@ -110,22 +110,24 @@ func tag_get_or_insert(tag_name string) int64 {
 }
 
 // Date formatting
-func validate_date(unparsed string) {
+func validate_date(unparsed string) time.Time {
 	split_unparsed := strings.Split(unparsed, "-")
 
 	month, err := strconv.Atoi(split_unparsed[0])
 	assert_error("Error converting month to int", err)
-	if month < 1 || month > 12 {
-		log.Fatalf("Month '%s' invalid", month)
-	}
 
 	day, err := strconv.Atoi(split_unparsed[1])
 	assert_error("Error converting day to int", err)
 
 	year, err := strconv.Atoi(split_unparsed[2])
 	assert_error("Error converting year to int", err)
-	year += 2000
 
+	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	if !(t.Year() == year && int(t.Month()) == month && t.Day() == day) {
+		log.Fatalf("Invalid date %d-%d-%d")
+	}
+
+	return t
 }
 
 // Log error
