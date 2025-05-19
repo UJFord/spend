@@ -68,7 +68,7 @@ func InitDB() {
 }
 
 // Insert a spend
-func CreateDaily(input []string) ([]string, error) {
+func CreateDaily(input []string) string {
 	item := input[0]
 	amount, err := strconv.Atoi(input[1])
 	assert_error(fmt.Sprintf("Error converting %s into int", input[1]), err)
@@ -82,7 +82,18 @@ func CreateDaily(input []string) ([]string, error) {
 	assert_error("Error preparing insert statement", err)
 	defer insert_stmt.Close()
 
-	return input, err
+	exec_insert_stmt, err := insert_stmt.Exec(item, amount, date, tag)
+	assert_error("Error executing insert statement", err)
+
+	id_of_inserted, err := exec_insert_stmt.LastInsertId()
+	assert_error("Error fetching last insert id", err)
+
+	output := fmt.Sprintf("Created daily spend: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
+	value := fmt.Sprintf("Created daily spend: %s", strings.Join(input, " "))
+	// fmt.Printf("Created daily spend: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
+	fmt.Println(output)
+
+	return value
 }
 
 // Inserting or getting a tag
@@ -124,7 +135,7 @@ func validate_date(unparsed string) time.Time {
 
 	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 	if !(t.Year() == year && int(t.Month()) == month && t.Day() == day) {
-		log.Fatalf("Invalid date %d-%d-%d")
+		log.Fatalf("Invalid date %d-%d-%d", month, day, year)
 	}
 
 	return t
@@ -138,18 +149,21 @@ func assert_error(message string, err error) {
 }
 
 // Validate input
-func validate_input(args []string) {
+func validate_input(args []string) string {
 	action := args[0]
 
 	switch action {
 	case "-cd":
-		CreateDaily(args[1:])
+		return CreateDaily(args[1:])
 	default:
 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
 	}
+
+	return "There should be an error"
 }
 
 func main() {
-	// InitDB()
 	fmt.Println(os.Args[1:])
+	InitDB()
+	validate_input(os.Args[1:])
 }
