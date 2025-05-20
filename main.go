@@ -94,7 +94,7 @@ func CreateDaily(input []string) (string, int64) {
 }
 
 // Remove a spend
-func RemoveDaily(input []string) string {
+func RemoveDaily(input int64) string {
 	return ""
 }
 
