@@ -68,7 +68,7 @@ func InitDB() {
 }
 
 // Insert a spend
-func CreateDaily(input []string) string {
+func CreateDaily(input []string) (string, int64) {
 	item := input[0]
 	amount, err := strconv.Atoi(input[1])
 	assert_error(fmt.Sprintf("Error converting %s into int", input[1]), err)
@@ -76,7 +76,7 @@ func CreateDaily(input []string) string {
 	tag := tag_get_or_insert(input[3])
 
 	insert_stmt, err := DB.Prepare(`
-		INSERT INTO daily(item, amount, date, tag)
+		INSERT INTO daily(item, amount, date, tag_id)
 		VALUES (?, ?, ?, ?)
 	`)
 	assert_error("Error preparing insert statement", err)
@@ -88,12 +88,14 @@ func CreateDaily(input []string) string {
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("Error fetching last insert id", err)
 
-	output := fmt.Sprintf("Created daily spend: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
-	value := fmt.Sprintf("Created daily spend: %s", strings.Join(input, " "))
-	// fmt.Printf("Created daily spend: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
-	fmt.Println(output)
+	output := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
 
-	return value
+	return output, id_of_inserted
+}
+
+// Remove a spend
+func RemoveDaily(input []string) string {
+	return ""
 }
 
 // Inserting or getting a tag
@@ -149,7 +151,7 @@ func assert_error(message string, err error) {
 }
 
 // Validate input
-func validate_input(args []string) string {
+func Validate(args []string) (string, int64) {
 	action := args[0]
 
 	switch action {
@@ -159,11 +161,11 @@ func validate_input(args []string) string {
 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
 	}
 
-	return "There should be an error"
+	return "There should be an error", 0
 }
 
 func main() {
-	fmt.Println(os.Args[1:])
+	// fmt.Println(os.Args[1:])
 	InitDB()
-	validate_input(os.Args[1:])
+	fmt.Println(Validate(os.Args[1:]))
 }
