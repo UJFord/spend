@@ -2,31 +2,42 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-var inserted_id int64
+var (
+	inserted_id int64
+	spend       []string
+)
 
-func TestValidate(t *testing.T) {
+// Adding
+func TestCreateDaily(t *testing.T) {
 	InitDB()
+	var got string
 
-	// Adding
-	t.Run("adding manok", func(t *testing.T) {
-		spend := []string{"manok", "60", "1-1-2001", "ulam"}
+	spend = []string{"test item", "60", "11-30-2001", "testing"}
 
-		got, inserted_id := CreateDaily(spend)
-		want := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
-		if got != want {
-			t.Errorf("got %s want %s", got, want)
-		}
-	})
+	got, inserted_id = CreateDaily(spend)
+	want := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
+	if got != want {
+		t.Errorf("got %s want %s", got, want)
+	}
+}
 
-	// Removing
-	t.Run("removing created manok", func(t *testing.T) {
-		remove := inserted_id
+// Editing
+func TestEditDaily(t *testing.T) {
+	got := EditDaily(inserted_id)
+	want := fmt.Sprintf("Edited Daily Spend: %d from %s into %s", inserted_id, string.Join(spend, " "), 
+}
 
-		got := RemoveDaily(remove)
-	})
+// Removing
+func TestRemoveDaily(t *testing.T) {
+	remove := inserted_id
+
+	got := RemoveDaily(remove)
+	want := fmt.Sprintf("Removed Daily Spend: %d %s", inserted_id, strings.Join(spend, " "))
+	if got != want {
+		t.Errorf("got %s want %s", got, want)
+	}
 }

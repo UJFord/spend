@@ -93,13 +93,64 @@ func CreateDaily(input []string) (string, int64) {
 	return output, id_of_inserted
 }
 
-// Remove a spend
-func RemoveDaily(input int64) string {
-	return ""
+// Remove a daily spend
+func RemoveDaily(target_id int64) string {
+
+	target_daily := get_daily_by_id(target_id)
+
+	delete_stmt, err := DB.Prepare("DELETE FROM daily WHERE id=?")
+	assert_error("Error preparing delete statement:", err)
+
+	_, err = delete_stmt.Exec(target_id)
+	assert_error("Error executing delete statement:", err)
+
+	return fmt.Sprintf("Removed Daily Spend: %d %s", target_id, strings.Join(target_daily[:], " "))
+}
+
+// Get Daily info by id
+func get_daily_by_id(target_id int64) [4]string {
+
+	get_daily := DB.QueryRow("SELECT item, amount, date, tag_id FROM daily WHERE id=?", target_id)
+
+	var result [4]string
+	err := get_daily.Scan(&result[0], &result[1], &result[2], &result[3])
+	assert_error("Error scanning Get Daily Info by ID statement", err)
+
+	result[2] = get_date_from_time_struct(result[2])
+
+	result[3] = get_tag_by_id(result[3])
+
+	return result
+}
+
+// Get Date from time.Time structure
+func get_date_from_time_struct(time_struct string) string {
+
+	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
+	assert_error(fmt.Sprintf("Error Parsing time.Time %s", time_struct), err)
+
+	date := fmt.Sprintf("%d-%d-%d", int(t.Month()), t.Day(), t.Year())
+
+	return date
+
+}
+
+// Get tag name by id
+func get_tag_by_id(target_id string) string {
+
+	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", target_id)
+
+	var result string
+	err := get_tag_name.Scan(&result)
+	assert_error("Error scanning Get Tag Name by ID", err)
+
+	return result
+
 }
 
 // Inserting or getting a tag
 func tag_get_or_insert(tag_name string) int64 {
+
 	var tag_id int64
 	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
 
@@ -168,4 +219,5 @@ func main() {
 	// fmt.Println(os.Args[1:])
 	InitDB()
 	fmt.Println(Validate(os.Args[1:]))
+	// fmt.Println(get_daily_by_id(1))
 }
