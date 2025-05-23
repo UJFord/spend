@@ -27,13 +27,20 @@ func TestCreateDaily(t *testing.T) {
 
 // Editing
 func TestEditDaily(t *testing.T) {
-	got := EditDaily(inserted_id)
-	want := fmt.Sprintf("Edited Daily Spend: %d from %s into %s", inserted_id, string.Join(spend, " "), 
+	target_info := 0
+	replace_with := "jeep"
+
+	got, replaced_info := EditDaily(inserted_id, target_info, replace_with)
+	want := fmt.Sprintf("Edited Daily Spend: %d from %s into %s", inserted_id, replace_with, replaced_info)
+	if got != want {
+		t.Errorf("got %s want %s", got, want)
+	}
 }
 
 // Removing
 func TestRemoveDaily(t *testing.T) {
 	remove := inserted_id
+	spend[0] = "jeep"
 
 	got := RemoveDaily(remove)
 	want := fmt.Sprintf("Removed Daily Spend: %d %s", inserted_id, strings.Join(spend, " "))

@@ -93,6 +93,39 @@ func CreateDaily(input []string) (string, int64) {
 	return output, id_of_inserted
 }
 
+// Edit a daily spend
+func EditDaily(target_daily_id int64, target_info int, to_replace_with string) (string, string) {
+
+	if target_info < 0 || target_info > 3 {
+		log.Fatalf("Error choosing target info: Out of Bounds")
+	}
+
+	var target string
+	switch target_info {
+	case 0:
+		target = "item"
+	case 1:
+		target = "amount"
+	case 2:
+		target = "date"
+	case 3:
+		target = "tag_id"
+		to_replace_with = strconv.FormatInt(tag_get_or_insert(to_replace_with), 10)
+	}
+
+	update_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE daily SET %s = ? WHERE id = ?", target))
+	assert_error("Error preparing edit statement", err)
+	defer update_stmt.Close()
+
+	exec_update_stmt, err := update_stmt.Exec(to_replace_with, target_daily_id)
+	assert_error("Error executing update statement", err)
+
+	inserted_id, err := exec_update_stmt.LastInsertId()
+	replaced_value := get_daily_by_id(inserted_id)[target_info]
+
+	return fmt.Sprintf("Edited Daily Spend: %d from %s into %s", target_daily_id, replaced_value, to_replace_with), to_replace_with
+}
+
 // Remove a daily spend
 func RemoveDaily(target_id int64) string {
 
@@ -122,6 +155,8 @@ func get_daily_by_id(target_id int64) [4]string {
 
 	return result
 }
+
+//
 
 // Get Date from time.Time structure
 func get_date_from_time_struct(time_struct string) string {
