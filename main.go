@@ -121,15 +121,17 @@ func EditDaily(target_daily_id int64, target_info int, to_replace_with string) (
 	assert_error("Error executing update statement", err)
 
 	inserted_id, err := exec_update_stmt.LastInsertId()
-	replaced_value := get_daily_by_id(inserted_id)[target_info]
+	daily_value, _ := ReadDaily(inserted_id)
+	replaced_value := daily_value[target_info]
 
-	return fmt.Sprintf("Edited Daily Spend: %d from %s into %s", target_daily_id, replaced_value, to_replace_with), to_replace_with
+	return fmt.Sprintf("Edited Daily Spend: id(%d) from (%s) into (%s)", target_daily_id, replaced_value, to_replace_with),
+		to_replace_with
 }
 
-// Remove a daily spend
+// Remove daily spend
 func RemoveDaily(target_id int64) string {
 
-	target_daily := get_daily_by_id(target_id)
+	target_daily, _ := ReadDaily(target_id)
 
 	delete_stmt, err := DB.Prepare("DELETE FROM daily WHERE id=?")
 	assert_error("Error preparing delete statement:", err)
@@ -141,7 +143,7 @@ func RemoveDaily(target_id int64) string {
 }
 
 // Get Daily info by id
-func get_daily_by_id(target_id int64) [4]string {
+func ReadDaily(target_id int64) ([4]string, string) {
 
 	get_daily := DB.QueryRow("SELECT item, amount, date, tag_id FROM daily WHERE id=?", target_id)
 
@@ -153,7 +155,9 @@ func get_daily_by_id(target_id int64) [4]string {
 
 	result[3] = get_tag_by_id(result[3])
 
-	return result
+	output := fmt.Sprintf("Daily info: %d %s", target_id, strings.Join(result[:], " "))
+
+	return result, output
 }
 
 //
@@ -254,5 +258,5 @@ func main() {
 	// fmt.Println(os.Args[1:])
 	InitDB()
 	fmt.Println(Validate(os.Args[1:]))
-	// fmt.Println(get_daily_by_id(1))
+	// fmt.Println(ReadDaily(1))
 }

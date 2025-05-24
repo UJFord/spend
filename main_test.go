@@ -20,9 +20,17 @@ func TestCreateDaily(t *testing.T) {
 
 	got, inserted_id = CreateDaily(spend)
 	want := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
-	if got != want {
-		t.Errorf("got %s want %s", got, want)
-	}
+	log_error(t, got, want)
+}
+
+// Reading
+func TestReadDaily(t *testing.T) {
+
+	_, daily_info := ReadDaily(inserted_id)
+
+	got := daily_info
+	want := fmt.Sprintf("Daily info: %d %s", inserted_id, strings.Join(spend, " "))
+	log_error(t, got, want)
 }
 
 // Editing
@@ -31,10 +39,8 @@ func TestEditDaily(t *testing.T) {
 	replace_with := "jeep"
 
 	got, replaced_info := EditDaily(inserted_id, target_info, replace_with)
-	want := fmt.Sprintf("Edited Daily Spend: %d from %s into %s", inserted_id, replace_with, replaced_info)
-	if got != want {
-		t.Errorf("got %s want %s", got, want)
-	}
+	want := fmt.Sprintf("Edited Daily Spend: id(%d) from (%s) into (%s)", inserted_id, replace_with, replaced_info)
+	log_error(t, got, want)
 }
 
 // Removing
@@ -44,7 +50,12 @@ func TestRemoveDaily(t *testing.T) {
 
 	got := RemoveDaily(remove)
 	want := fmt.Sprintf("Removed Daily Spend: %d %s", inserted_id, strings.Join(spend, " "))
+	log_error(t, got, want)
+}
+
+// return error
+func log_error(t testing.TB, got, want string) {
 	if got != want {
-		t.Errorf("got %s want %s", got, want)
+		t.Errorf("got '%s' want '%s'", got, want)
 	}
 }
