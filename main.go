@@ -67,18 +67,18 @@ func InitDB() {
 	assert_error("Error executing init DB", err)
 }
 
-// Insert a spend
-func CreateDaily(input []string) (string, int64) {
+// Create
+func Create(input []string, target_table string) (string, int64) {
 	item := input[0]
 	amount, err := strconv.Atoi(input[1])
 	assert_error(fmt.Sprintf("Error converting %s into int", input[1]), err)
 	date := validate_date(input[2])
 	tag := tag_get_or_insert(input[3])
 
-	insert_stmt, err := DB.Prepare(`
-		INSERT INTO daily(item, amount, date, tag_id)
+	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
+		INSERT INTO %s(item, amount, date, tag_id)
 		VALUES (?, ?, ?, ?)
-	`)
+	`, target_table))
 	assert_error("Error preparing insert statement", err)
 	defer insert_stmt.Close()
 
@@ -88,7 +88,7 @@ func CreateDaily(input []string) (string, int64) {
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("Error fetching last insert id", err)
 
-	output := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
+	output := fmt.Sprintf("%s Spend Created: %s with id %d\n", target_table, strings.Join(input, " "), id_of_inserted)
 
 	return output, id_of_inserted
 }
@@ -159,8 +159,6 @@ func ReadDaily(target_id int64) ([4]string, string) {
 
 	return result, output
 }
-
-//
 
 // Get Date from time.Time structure
 func get_date_from_time_struct(time_struct string) string {
@@ -246,7 +244,7 @@ func Validate(args []string) (string, int64) {
 
 	switch action {
 	case "-cd":
-		return CreateDaily(args[1:])
+		return Create(args[1:], "daily")
 	default:
 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
 	}

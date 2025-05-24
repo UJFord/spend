@@ -12,15 +12,25 @@ var (
 )
 
 // Adding
-func TestCreateDaily(t *testing.T) {
+func TestCreate(t *testing.T) {
 	InitDB()
 	var got string
 
-	spend = []string{"test item", "60", "11-30-2001", "testing"}
+	t.Run("daily", func(t *testing.T) {
+		spend = []string{"test item", "60", "11-30-2001", "testing"}
 
-	got, inserted_id = CreateDaily(spend)
-	want := fmt.Sprintf("Daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
-	log_error(t, got, want)
+		got, inserted_id = Create(spend, "daily")
+		want := fmt.Sprintf("daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
+		log_error(t, got, want)
+	})
+
+	t.Run("monthly", func(t *testing.T) {
+		spend = []string{"rent", "4500", "11-30-2001", "rent"}
+
+		got, inserted_id = Create(spend, "monthly")
+		want := fmt.Sprintf("monthly Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
+		log_error(t, got, want)
+	})
 }
 
 // Reading
@@ -35,6 +45,7 @@ func TestReadDaily(t *testing.T) {
 
 // Editing
 func TestEditDaily(t *testing.T) {
+	t.Helper()
 	target_info := 0
 	replace_with := "jeep"
 
@@ -45,6 +56,7 @@ func TestEditDaily(t *testing.T) {
 
 // Removing
 func TestRemoveDaily(t *testing.T) {
+	t.Helper()
 	remove := inserted_id
 	spend[0] = "jeep"
 
