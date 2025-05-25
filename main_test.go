@@ -7,61 +7,71 @@ import (
 )
 
 var (
-	inserted_id int64
-	spend       []string
+	daily_inserted_id, monthly_inserted_id int64
+	daily_spend, monthly_spend             []string
+	d, m                                   string
 )
 
 // Adding
 func TestCreate(t *testing.T) {
 	InitDB()
+	d = "daily"
+	m = "monthly"
 	var got string
 
-	t.Run("daily", func(t *testing.T) {
-		spend = []string{"test item", "60", "11-30-2001", "testing"}
+	t.Run(d, func(t *testing.T) {
+		daily_spend = []string{"test item", "60", "11-30-2001", "testing"}
 
-		got, inserted_id = Create(spend, "daily")
-		want := fmt.Sprintf("daily Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
+		got, daily_inserted_id = Create(daily_spend, d)
+		fmt.Printf("daily: %d\n", daily_inserted_id)
+		want := fmt.Sprintf("CREATE daily spend created: %s with id %d\n",
+			strings.Join(daily_spend, " "), daily_inserted_id)
 		log_error(t, got, want)
 	})
 
-	t.Run("monthly", func(t *testing.T) {
-		spend = []string{"rent", "4500", "11-30-2001", "rent"}
+	t.Run(m, func(t *testing.T) {
+		monthly_spend = []string{"rent", "4500", "11-30-2001", "rent"}
 
-		got, inserted_id = Create(spend, "monthly")
-		want := fmt.Sprintf("monthly Spend Created: %s with id %d\n", strings.Join(spend, " "), inserted_id)
+		got, monthly_inserted_id = Create(monthly_spend, m)
+		want := fmt.Sprintf("CREATE monthly spend created: %s with id %d\n",
+			strings.Join(monthly_spend, " "), monthly_inserted_id)
+		fmt.Printf("monthly: %d\n", monthly_inserted_id)
 		log_error(t, got, want)
 	})
 }
 
 // Reading
-func TestReadDaily(t *testing.T) {
+func TestRead(t *testing.T) {
 
-	_, daily_info := ReadDaily(inserted_id)
+	t.Run("daily", func(t *testing.T) {
+		fmt.Println(daily_inserted_id)
+		_, daily_info := Read(daily_inserted_id, d)
 
-	got := daily_info
-	want := fmt.Sprintf("Daily info: %d %s", inserted_id, strings.Join(spend, " "))
-	log_error(t, got, want)
+		got := daily_info
+		want := fmt.Sprintf("READ daily info: %d %s", daily_inserted_id, strings.Join(daily_spend, " "))
+		log_error(t, got, want)
+	})
 }
 
 // Editing
-func TestEditDaily(t *testing.T) {
+func TestEdit(t *testing.T) {
 	t.Helper()
 	target_info := 0
 	replace_with := "jeep"
 
-	got, replaced_info := EditDaily(inserted_id, target_info, replace_with)
-	want := fmt.Sprintf("Edited Daily Spend: id(%d) from (%s) into (%s)", inserted_id, replace_with, replaced_info)
+	got, replaced_info := Edit(daily_inserted_id, target_info, replace_with, d)
+	want := fmt.Sprintf("EDIT edited Daily Spend: id(%d) from (%s) into (%s)", daily_inserted_id, replace_with, replaced_info)
 	log_error(t, got, want)
 }
 
 // Removing
-func TestRemoveDaily(t *testing.T) {
+func TestRemove(t *testing.T) {
 	t.Helper()
-	remove := inserted_id
-	spend[0] = "jeep"
+	remove := daily_inserted_id
+	daily_spend[0] = "jeep"
 
-	got := RemoveDaily(remove)
-	want := fmt.Sprintf("Removed Daily Spend: %d %s", inserted_id, strings.Join(spend, " "))
+	got := Remove(remove, d)
+	want := fmt.Sprintf("REMOVE removed Daily Spend: %d %s", daily_inserted_id, strings.Join(daily_spend, " "))
 	log_error(t, got, want)
 }
 

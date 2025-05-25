@@ -69,9 +69,10 @@ func InitDB() {
 
 // Create
 func Create(input []string, target_table string) (string, int64) {
+
 	item := input[0]
 	amount, err := strconv.Atoi(input[1])
-	assert_error(fmt.Sprintf("Error converting %s into int", input[1]), err)
+	assert_error(fmt.Sprintf("CREATE error converting %s into int", input[1]), err)
 	date := validate_date(input[2])
 	tag := tag_get_or_insert(input[3])
 
@@ -79,25 +80,25 @@ func Create(input []string, target_table string) (string, int64) {
 		INSERT INTO %s(item, amount, date, tag_id)
 		VALUES (?, ?, ?, ?)
 	`, target_table))
-	assert_error("Error preparing insert statement", err)
+	assert_error("CREATE error preparing insert statement", err)
 	defer insert_stmt.Close()
 
 	exec_insert_stmt, err := insert_stmt.Exec(item, amount, date, tag)
-	assert_error("Error executing insert statement", err)
+	assert_error("CREATE error executing insert statement", err)
 
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
-	assert_error("Error fetching last insert id", err)
+	assert_error("CREATE error fetching last insert id", err)
 
-	output := fmt.Sprintf("%s Spend Created: %s with id %d\n", target_table, strings.Join(input, " "), id_of_inserted)
+	output := fmt.Sprintf("CREATE %s spend created: %s with id %d\n", target_table, strings.Join(input, " "), id_of_inserted)
 
 	return output, id_of_inserted
 }
 
-// Edit a daily spend
-func EditDaily(target_daily_id int64, target_info int, to_replace_with string) (string, string) {
+// Edit a spend
+func Edit(target_id int64, target_info int, to_replace_with, target_table string) (string, string) {
 
 	if target_info < 0 || target_info > 3 {
-		log.Fatalf("Error choosing target info: Out of Bounds")
+		log.Fatalf("EDIT error choosing target info: Out of Bounds")
 	}
 
 	var target string
@@ -113,49 +114,52 @@ func EditDaily(target_daily_id int64, target_info int, to_replace_with string) (
 		to_replace_with = strconv.FormatInt(tag_get_or_insert(to_replace_with), 10)
 	}
 
-	update_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE daily SET %s = ? WHERE id = ?", target))
-	assert_error("Error preparing edit statement", err)
-	defer update_stmt.Close()
+	// edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE %s SET %s = ? WHERE = ?", target_table, target))
+	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE %s SET %s = ? WHERE id = ?", target_table, target))
+	assert_error("EDIT error preparing edit statement", err)
+	defer edit_stmt.Close()
 
-	exec_update_stmt, err := update_stmt.Exec(to_replace_with, target_daily_id)
-	assert_error("Error executing update statement", err)
+	exec_edit_stmt, err := edit_stmt.Exec(to_replace_with, target_id)
+	assert_error("EDIT error executing edit statement", err)
 
-	inserted_id, err := exec_update_stmt.LastInsertId()
-	daily_value, _ := ReadDaily(inserted_id)
+	inserted_id, err := exec_edit_stmt.LastInsertId()
+	daily_value, _ := Read(inserted_id, target_table)
 	replaced_value := daily_value[target_info]
 
-	return fmt.Sprintf("Edited Daily Spend: id(%d) from (%s) into (%s)", target_daily_id, replaced_value, to_replace_with),
+	return fmt.Sprintf("EDIT edited %s spend: id(%d) from (%s) into (%s)",
+			target_table, target_id, replaced_value, to_replace_with),
 		to_replace_with
 }
 
-// Remove daily spend
-func RemoveDaily(target_id int64) string {
+// Remove spend
+func Remove(target_id int64, target_table string) string {
 
-	target_daily, _ := ReadDaily(target_id)
+	target, _ := Read(target_id, target_table)
 
-	delete_stmt, err := DB.Prepare("DELETE FROM daily WHERE id=?")
-	assert_error("Error preparing delete statement:", err)
+	delete_stmt, err := DB.Prepare(fmt.Sprintf("DELETE FROM %s WHERE id=?", target_table))
+	assert_error("REMOVE error preparing delete statement:", err)
 
 	_, err = delete_stmt.Exec(target_id)
-	assert_error("Error executing delete statement:", err)
+	assert_error("REMOVE error executing delete statement:", err)
 
-	return fmt.Sprintf("Removed Daily Spend: %d %s", target_id, strings.Join(target_daily[:], " "))
+	return fmt.Sprintf("REMOVE removed %s spend: %d %s", target_table, target_id, strings.Join(target[:], " "))
 }
 
-// Get Daily info by id
-func ReadDaily(target_id int64) ([4]string, string) {
+// Get info by id
+func Read(target_id int64, target_table string) ([4]string, string) {
 
-	get_daily := DB.QueryRow("SELECT item, amount, date, tag_id FROM daily WHERE id=?", target_id)
+	get := DB.QueryRow(fmt.Sprintf("SELECT item, amount, date, tag_id FROM %s WHERE id=?", target_table), target_id)
 
 	var result [4]string
-	err := get_daily.Scan(&result[0], &result[1], &result[2], &result[3])
-	assert_error("Error scanning Get Daily Info by ID statement", err)
+	err := get.Scan(&result[0], &result[1], &result[2], &result[3])
+	fmt.Println(target_table)
+	assert_error(fmt.Sprintf("READ error scanning get %s info by id(%d) statement", target_table, target_id), err)
 
 	result[2] = get_date_from_time_struct(result[2])
 
 	result[3] = get_tag_by_id(result[3])
 
-	output := fmt.Sprintf("Daily info: %d %s", target_id, strings.Join(result[:], " "))
+	output := fmt.Sprintf("READ %s info: %d %s", target_table, target_id, strings.Join(result[:], " "))
 
 	return result, output
 }
@@ -256,5 +260,5 @@ func main() {
 	// fmt.Println(os.Args[1:])
 	InitDB()
 	fmt.Println(Validate(os.Args[1:]))
-	// fmt.Println(ReadDaily(1))
+	// fmt.Println(Read(1))
 }
