@@ -119,11 +119,10 @@ func Edit(target_id int64, target_info int, to_replace_with, target_table string
 	assert_error("EDIT error preparing edit statement", err)
 	defer edit_stmt.Close()
 
-	exec_edit_stmt, err := edit_stmt.Exec(to_replace_with, target_id)
+	_, err = edit_stmt.Exec(to_replace_with, target_id)
 	assert_error("EDIT error executing edit statement", err)
 
-	inserted_id, err := exec_edit_stmt.LastInsertId()
-	daily_value, _ := Read(inserted_id, target_table)
+	daily_value, _ := Read(target_id, target_table)
 	replaced_value := daily_value[target_info]
 
 	return fmt.Sprintf("EDIT edited %s spend: id(%d) from (%s) into (%s)",
@@ -152,7 +151,6 @@ func Read(target_id int64, target_table string) ([4]string, string) {
 
 	var result [4]string
 	err := get.Scan(&result[0], &result[1], &result[2], &result[3])
-	fmt.Println(target_table)
 	assert_error(fmt.Sprintf("READ error scanning get %s info by id(%d) statement", target_table, target_id), err)
 
 	result[2] = get_date_from_time_struct(result[2])
