@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	daily_inserted_id, monthly_inserted_id int64
-	daily_spend, monthly_spend             []string
-	d, m                                   string
+	daily_inserted_id, monthly_inserted_id, ahead_inserted_id int64
+	daily_spend, monthly_spend                                []string
+	d, m                                                      string
 )
 
 // Adding
@@ -108,6 +108,34 @@ func TestRemove(t *testing.T) {
 
 		log_error(t, got, want)
 	})
+}
+
+// Spending Ahead
+var ahead_amount = 999.00
+
+func TestCreateAhead(t *testing.T) {
+
+	var got string
+	got, ahead_inserted_id = CreateAhead(ahead_amount)
+	want := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) ahead with id(%d)", ahead_amount, ahead_inserted_id)
+
+	log_error(t, got, want)
+}
+
+func TestReadAhead(t *testing.T) {
+
+	_, got := ReadAhead(ahead_inserted_id)
+	want := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f)", ahead_inserted_id, ahead_amount)
+
+	log_error(t, got, want)
+}
+
+func TestRemoveAhead(t *testing.T) {
+
+	got := RemoveAhead(ahead_inserted_id)
+	want := fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", ahead_amount, ahead_inserted_id)
+
+	log_error(t, got, want)
 }
 
 // return error

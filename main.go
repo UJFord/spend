@@ -162,6 +162,57 @@ func Read(target_id int64, target_table string) ([4]string, string) {
 	return result, output
 }
 
+// Create spend ahead
+func CreateAhead(amount float64) (string, int64) {
+
+	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount) VALUES(?)")
+
+	assert_error("CREATE error preparing insert statement", err)
+	defer insert_stmt.Close()
+
+	exec_insert_stmt, err := insert_stmt.Exec(amount)
+	assert_error("CREATE error executing insert statement", err)
+
+	id_of_inserted, err := exec_insert_stmt.LastInsertId()
+	assert_error("CREATE error fetching last insert id", err)
+
+	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) ahead with id(%d)", amount, id_of_inserted)
+
+	return output, id_of_inserted
+
+}
+
+// Read spend ahead
+func ReadAhead(target_id int64) (float64, string) {
+
+	target_table := "ahead"
+
+	get := DB.QueryRow("SELECT amount FROM ahead WHERE id=?", target_id)
+
+	var amount float64
+	err := get.Scan(&amount)
+	assert_error(fmt.Sprintf("READ AHEAD error scanning get %s info by id(%d) statement", target_table, target_id), err)
+
+	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f)", target_id, amount)
+
+	return amount, output
+
+}
+
+// Remove spend ahead
+func RemoveAhead(target_id int64) string {
+
+	amount, _ := ReadAhead(target_id)
+
+	delete_stmt, err := DB.Prepare("DELETE FROM ahead WHERE id=?")
+	assert_error("REMOVE AHEAD error preparing delete statement:", err)
+
+	_, err = delete_stmt.Exec(target_id)
+	assert_error("REMOVE AHEAD error executing delete statement:", err)
+
+	return fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", amount, target_id)
+}
+
 // Get Date from time.Time structure
 func get_date_from_time_struct(time_struct string) string {
 
