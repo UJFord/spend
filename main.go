@@ -179,9 +179,10 @@ func CreateAhead(amount float64, date string) (string, int64) {
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("CREATE error fetching last insert id", err)
 
+	date = parsed_date.Format("1-2-2006")
 	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
 		amount,
-		parsed_date,
+		date,
 		id_of_inserted)
 
 	return output, id_of_inserted
@@ -191,17 +192,19 @@ func CreateAhead(amount float64, date string) (string, int64) {
 // Read spend ahead
 func ReadAhead(target_id int64) (float64, string) {
 
-	target_table := "ahead"
+	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
 
-	get := DB.QueryRow("SELECT amount FROM ahead WHERE id=?", target_id)
+	var result [2]string
+	err := get.Scan(&result[0], &result[1])
+	assert_error(fmt.Sprintf("READ AHEAD error scanning get item info by id(%d) statement", target_id), err)
 
-	var amount float64
-	err := get.Scan(&amount)
-	assert_error(fmt.Sprintf("READ AHEAD error scanning get %s info by id(%d) statement", target_table, target_id), err)
+	parsed_amount, err := strconv.ParseFloat(result[0], 64)
+	assert_error("READ AHEAD error parsing float", err)
+	parsed_date := get_date_from_time_struct(result[1])
 
-	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f)", target_id, amount)
+	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", target_id, parsed_amount, parsed_date)
 
-	return amount, output
+	return parsed_amount, output
 
 }
 
@@ -225,10 +228,32 @@ func get_date_from_time_struct(time_struct string) string {
 	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
 	assert_error(fmt.Sprintf("Error Parsing time.Time %s", time_struct), err)
 
-	date := fmt.Sprintf("%d-%d-%d", int(t.Month()), t.Day(), t.Year())
+	// date := fmt.Sprintf("%d-%d-%d", int(t.Month()), t.Day(), t.Year())
+	date := t.Format("1-2-2006")
 
 	return date
 
+}
+
+// Date formatting
+func validate_date(unparsed string) time.Time {
+	split_unparsed := strings.Split(unparsed, "-")
+
+	month, err := strconv.Atoi(split_unparsed[0])
+	assert_error("Error converting month to int", err)
+
+	day, err := strconv.Atoi(split_unparsed[1])
+	assert_error("Error converting day to int", err)
+
+	year, err := strconv.Atoi(split_unparsed[2])
+	assert_error("Error converting year to int", err)
+
+	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	if !(t.Year() == year && int(t.Month()) == month && t.Day() == day) {
+		log.Fatalf("Invalid date %d-%d-%d", month, day, year)
+	}
+
+	return t
 }
 
 // Get tag name by id
@@ -267,27 +292,6 @@ func tag_get_or_insert(tag_name string) int64 {
 	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
 	return tag_id
 
-}
-
-// Date formatting
-func validate_date(unparsed string) time.Time {
-	split_unparsed := strings.Split(unparsed, "-")
-
-	month, err := strconv.Atoi(split_unparsed[0])
-	assert_error("Error converting month to int", err)
-
-	day, err := strconv.Atoi(split_unparsed[1])
-	assert_error("Error converting day to int", err)
-
-	year, err := strconv.Atoi(split_unparsed[2])
-	assert_error("Error converting year to int", err)
-
-	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-	if !(t.Year() == year && int(t.Month()) == month && t.Day() == day) {
-		log.Fatalf("Invalid date %d-%d-%d", month, day, year)
-	}
-
-	return t
 }
 
 // Log error
