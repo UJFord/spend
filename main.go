@@ -164,20 +164,25 @@ func Read(target_id int64, target_table string) ([4]string, string) {
 }
 
 // Create spend ahead
-func CreateAhead(amount float64) (string, int64) {
+func CreateAhead(amount float64, date string) (string, int64) {
 
-	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount) VALUES(?)")
+	parsed_date := validate_date(date)
+
+	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
 
 	assert_error("CREATE error preparing insert statement", err)
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(amount)
+	exec_insert_stmt, err := insert_stmt.Exec(amount, parsed_date)
 	assert_error("CREATE error executing insert statement", err)
 
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("CREATE error fetching last insert id", err)
 
-	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) ahead with id(%d)", amount, id_of_inserted)
+	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
+		amount,
+		parsed_date,
+		id_of_inserted)
 
 	return output, id_of_inserted
 

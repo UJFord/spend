@@ -111,13 +111,19 @@ func TestRemove(t *testing.T) {
 }
 
 // Spending Ahead
-var ahead_amount = 999.00
+var (
+	ahead_amount = 999.00
+	ahead_date   = "2025-01-01"
+)
 
 func TestCreateAhead(t *testing.T) {
 
 	var got string
-	got, ahead_inserted_id = CreateAhead(ahead_amount)
-	want := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) ahead with id(%d)", ahead_amount, ahead_inserted_id)
+	got, ahead_inserted_id = CreateAhead(ahead_amount, ahead_date)
+	want := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
+		ahead_amount,
+		ahead_date,
+		ahead_inserted_id)
 
 	log_error(t, got, want)
 }
