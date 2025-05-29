@@ -51,7 +51,7 @@ func InitDB() {
 	CREATE TABLE IF NOT EXISTS ahead(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		amount REAL NOT NULL,
-		date TEXT DEFUALT '1970-01-01 00:00:00+00:00'
+		date TEXT DEFAULT '1970-01-01 00:00:00+00:00'
 	);
 	CREATE TABLE IF NOT EXISTS forecast(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -228,7 +228,6 @@ func get_date_from_time_struct(time_struct string) string {
 	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
 	assert_error(fmt.Sprintf("Error Parsing time.Time %s", time_struct), err)
 
-	// date := fmt.Sprintf("%d-%d-%d", int(t.Month()), t.Day(), t.Year())
 	date := t.Format("1-2-2006")
 
 	return date
