@@ -28,20 +28,13 @@ func InitDB() {
 	assert_error("Error initializing DB", err)
 
 	init_schema := `
-	CREATE TABLE IF NOT EXISTS daily(
+	CREATE TABLE IF NOT EXISTS spend(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		item TEXT NOT NULL,
 		amount REAL NOT NULL,
-		date TEXT NOT NULL,
+		date TEXT DEFAULT '1970-01-01 00:00:00+00:00',
 		tag_id INTEGER,
-		FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-	);
-	CREATE TABLE IF NOT EXISTS monthly(
-		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		item TEXT NOT NULL,
-		amount REAL NOT NULL,
-		date TEXT NOT NULL,
-		tag_id INTEGER,
+		freq INTEGER DEFAULT '1',
 		FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 	);
 	CREATE TABLE IF NOT EXISTS tags(
@@ -69,28 +62,43 @@ func InitDB() {
 }
 
 // Create
-func Create(input []string, target_table string) (string, int64) {
+func Create(input []string) (string, int64) {
 
 	item := input[0]
+
 	amount, err := strconv.Atoi(input[1])
-	assert_error(fmt.Sprintf("CREATE error converting %s into int", input[1]), err)
-	date := validate_date(input[2])
-	tag := tag_get_or_insert(input[3])
+	assert_error(fmt.Sprintf("CREATE error converting %s into int", input[2]), err)
+
+	date := ParseDate(input[2])
+
+	tag := GetTagID(input[3])
+
+	var freq string
+	switch input[4] {
+	case "":
+		freq = "1"
+	case "daily":
+		freq = "1"
+	case "monthly":
+		freq = "0"
+	default:
+		log.Fatalf("CREATE don't know what %s means", input[4])
+	}
 
 	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
-		INSERT INTO %s(item, amount, date, tag_id)
-		VALUES (?, ?, ?, ?)
-	`, target_table))
+		INSERT INTO spend(item, amount, date, tag_id, freq)
+		VALUES (?, ?, ?, ?, ?)
+	`))
 	assert_error("CREATE error preparing insert statement", err)
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(item, amount, date, tag)
+	exec_insert_stmt, err := insert_stmt.Exec(item, amount, date, tag, freq)
 	assert_error("CREATE error executing insert statement", err)
 
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("CREATE error fetching last insert id", err)
 
-	output := fmt.Sprintf("CREATE %s spend created: %s with id %d\n", target_table, strings.Join(input, " "), id_of_inserted)
+	output := fmt.Sprintf("CREATE spend created: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
 
 	return output, id_of_inserted
 }
@@ -112,7 +120,7 @@ func Edit(target_id int64, target_info int, to_replace_with, target_table string
 		target = "date"
 	case 3:
 		target = "tag_id"
-		to_replace_with = strconv.FormatInt(tag_get_or_insert(to_replace_with), 10)
+		to_replace_with = strconv.FormatInt(GetTagID(to_replace_with), 10)
 	}
 
 	// edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE %s SET %s = ? WHERE = ?", target_table, target))
@@ -154,9 +162,9 @@ func Read(target_id int64, target_table string) ([4]string, string) {
 	err := get.Scan(&result[0], &result[1], &result[2], &result[3])
 	assert_error(fmt.Sprintf("READ error scanning get %s info by id(%d) statement", target_table, target_id), err)
 
-	result[2] = get_date_from_time_struct(result[2])
+	result[2] = UnparseDate(result[2])
 
-	result[3] = get_tag_by_id(result[3])
+	result[3] = GetTagValue(result[3])
 
 	output := fmt.Sprintf("READ %s info: %d %s", target_table, target_id, strings.Join(result[:], " "))
 
@@ -166,7 +174,7 @@ func Read(target_id int64, target_table string) ([4]string, string) {
 // Create spend ahead
 func CreateAhead(amount float64, date string) (string, int64) {
 
-	parsed_date := validate_date(date)
+	parsed_date := ParseDate(date)
 
 	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
 
@@ -200,7 +208,7 @@ func ReadAhead(target_id int64) (float64, string) {
 
 	parsed_amount, err := strconv.ParseFloat(result[0], 64)
 	assert_error("READ AHEAD error parsing float", err)
-	parsed_date := get_date_from_time_struct(result[1])
+	parsed_date := UnparseDate(result[1])
 
 	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", target_id, parsed_amount, parsed_date)
 
@@ -223,7 +231,7 @@ func RemoveAhead(target_id int64) string {
 }
 
 // Get Date from time.Time structure
-func get_date_from_time_struct(time_struct string) string {
+func UnparseDate(time_struct string) string {
 
 	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
 	assert_error(fmt.Sprintf("Error Parsing time.Time %s", time_struct), err)
@@ -235,7 +243,7 @@ func get_date_from_time_struct(time_struct string) string {
 }
 
 // Date formatting
-func validate_date(unparsed string) time.Time {
+func ParseDate(unparsed string) time.Time {
 	split_unparsed := strings.Split(unparsed, "-")
 
 	month, err := strconv.Atoi(split_unparsed[0])
@@ -256,7 +264,7 @@ func validate_date(unparsed string) time.Time {
 }
 
 // Get tag name by id
-func get_tag_by_id(target_id string) string {
+func GetTagValue(target_id string) string {
 
 	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", target_id)
 
@@ -269,7 +277,7 @@ func get_tag_by_id(target_id string) string {
 }
 
 // Inserting or getting a tag
-func tag_get_or_insert(tag_name string) int64 {
+func GetTagID(tag_name string) int64 {
 
 	var tag_id int64
 	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
@@ -282,10 +290,10 @@ func tag_get_or_insert(tag_name string) int64 {
 		result, err := statement.Exec(tag_name)
 		assert_error(fmt.Sprintf("Error 'inserting' new tag(%s) in tags table", tag_name), err)
 
-		last_insert_id, err := result.LastInsertId()
+		tag_id, err := result.LastInsertId()
 		assert_error(fmt.Sprintf("Error getting LastInsertId after inserting new tag(%s)", tag_name), err)
 
-		return last_insert_id
+		return tag_id
 	}
 
 	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
@@ -306,7 +314,7 @@ func Validate(args []string) (string, int64) {
 
 	switch action {
 	case "-cd":
-		return Create(args[1:], "daily")
+		return Create(args[1:])
 	default:
 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
 	}
