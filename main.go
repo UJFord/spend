@@ -46,15 +46,11 @@ func InitDB() {
 		amount REAL NOT NULL,
 		date TEXT DEFAULT '1970-01-01 00:00:00+00:00'
 	);
-	CREATE TABLE IF NOT EXISTS forecast(
+	CREATE TABLE IF NOT EXISTS income(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		daily_mean REAL NOT NULL,
-		daily_total REAL NOT NULL,
-		daily_forecast REAL NOT NULL,
-		monthly_total REAL NOT NULL,
-		ahead_total REAL NOT NULL,
-		income_total REAL NOT NULL,
-		overshoot_total REAL NOT NULL
+		name TEXT NOT NULL,
+		amount REAL NOT NULL,
+		date TEXT DEFAULT '1970-01-01 00:00:00+00:00'
 	);
 	`
 	_, err = DB.Exec(init_schema)
@@ -238,6 +234,93 @@ func RemoveAhead(target_id int64) string {
 	assert_error("REMOVE AHEAD error executing delete statement:", err)
 
 	return fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", amount, target_id)
+}
+
+// Forecast
+func Forecast() {
+	// ahead sum
+	get_total := func(table string) (float64, error) {
+
+		query := fmt.Sprintf(`
+			SELECT SUM(amount) FROM %s
+			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', now)
+		`, table)
+
+		var total sql.NullFloat64
+		err := DB.QueryRow(query).Scan(&total)
+		if err != nil {
+			return 0, err
+		}
+
+		if total.Valid {
+			return total.Float64, nil
+		}
+		return 0, nil
+	}
+
+	get_mean := func() (float64, error) {
+		query := `
+			SELECT SUM(amount) FROM ahead
+			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', now)
+		`
+
+		var total sql.NullFloat64
+		err := DB.QueryRow(query).Scan(&total)
+		if err != nil {
+			return 0, err
+		}
+
+		if total.Valid {
+			return total.Float64, nil
+		}
+		return 0, nil
+	}
+
+	days_left := func() int {
+		today := time.Now()
+		year, month := today.Year(), today.Month()
+
+		first_of_next_month := time.Date(year, month+1, 1, 0, 0, 0, 0, today.Location())
+		days_left := int(first_of_next_month.Sub(today).Hours() / 24)
+
+		return days_left
+	}
+
+	var (
+		daily_total     float64
+		daily_mean      float64
+		ahead_total     float64
+		overshoot_total float64
+		income_total    float64
+		daily_forecast  float64
+		err             error
+	)
+
+	daily_total, err = get_total("spend")
+	assert_error("FORECAST error scanning TOTAL of 'spend' table", err)
+
+	daily_mean, err = get_mean()
+	assert_error("FORECAST error scanning MEAN of 'spend' table", err)
+
+	ahead_total, err = get_total("ahead")
+	assert_error("FORECAST error scanning TOTAL of 'ahead' table", err)
+
+	income_total, err = get_total("income")
+	assert_error("FORECAST error scanning TOTAL of 'income' table", err)
+
+	daily_forecast = (income_total - (daily_total + ahead_total)) / (float64(days_left()))
+
+	overshoot_total = income_total - ((daily_total + ahead_total) + (daily_mean * (float64(days_left()))))
+
+	fmt.Printf(`
+		Daily Total: %.2f\n
+		Ahead Total: %.2f\n
+		Income Total: %.2f\n
+		Daily Forecast: %.2f\n
+		Daily Mean: %.2f\n
+		Overshoot: %.2f\n
+	`, daily_total, ahead_total, income_total, daily_forecast, daily_mean, overshoot_total)
+
 }
 
 // Get Date from time.Time structure

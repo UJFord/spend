@@ -152,6 +152,8 @@ func TestRemoveAhead(t *testing.T) {
 	want := fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", ahead_amount, ahead_inserted_id)
 
 	log_error(t, got, want)
+
+	Forecast()
 }
 
 // return error
