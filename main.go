@@ -397,7 +397,7 @@ func GetTagID(tag_name string) int64 {
 // Log error
 func assert_error(message string, err error) {
 	if err != nil {
-		log.Fatalf("%s: %q", message, err)
+		log.Fatalf("%q: %q", message, err)
 	}
 }
 
