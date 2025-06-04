@@ -57,6 +57,35 @@ func InitDB() {
 	assert_error("Error executing init DB", err)
 }
 
+type Daily struct {
+	name   string
+	amount float64
+	date   time.Time
+	tag    string
+	freq   string
+}
+
+type Ahead struct {
+	amount float64
+	date   time.Time
+}
+
+type Spend interface {
+	Create() (string, int64)
+	Read() ([5]string, string)
+	Edit() (string, string)
+	Remove() string
+}
+
+type Foretell struct {
+	daily_total     float64
+	daily_mean      float64
+	ahead_total     float64
+	overshoot_total float64
+	income_total    float64
+	daily_forecast  float64
+}
+
 // Create
 func Create(input []string) (string, int64) {
 
