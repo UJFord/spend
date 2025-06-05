@@ -2,10 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"errors"
+	// "errors"
 	"fmt"
 	"log"
-	"os"
+	// "os"
 	"strconv"
 	"strings"
 	"time"
@@ -58,11 +58,11 @@ func InitDB() {
 }
 
 type Daily struct {
-	name   string
-	amount float64
-	date   time.Time
-	tag    string
-	freq   string
+	name,
+	amount,
+	date,
+	tag,
+	freq string
 }
 
 type Ahead struct {
@@ -87,27 +87,23 @@ type Foretell struct {
 }
 
 // Create
-func Create(input []string) (string, int64) {
+func (s Daily) Create() (string, int64) {
 
-	item := input[0]
+	amount, err := strconv.ParseFloat(s.amount, 64)
+	assert_error(fmt.Sprintf("CREATE error converting %s into float", s.amount), err)
 
-	amount, err := strconv.Atoi(input[1])
-	assert_error(fmt.Sprintf("CREATE error converting %s into int", input[2]), err)
+	date := ParseDate(s.date)
 
-	date := ParseDate(input[2])
-
-	tag := GetTagID(input[3])
+	tag := GetTagID(s.tag)
 
 	var is_daily bool
-	switch input[4] {
-	case "":
-		is_daily = true
-	case "daily":
+	switch s.freq {
+	case "", "daily":
 		is_daily = true
 	case "monthly":
 		is_daily = false
 	default:
-		log.Fatalf("CREATE don't know what %s means", input[4])
+		log.Fatalf("CREATE don't know what %s means", s.freq)
 	}
 
 	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
@@ -117,13 +113,13 @@ func Create(input []string) (string, int64) {
 	assert_error("CREATE error preparing insert statement", err)
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(item, amount, date, tag, is_daily)
+	exec_insert_stmt, err := insert_stmt.Exec(s.name, amount, date, tag, is_daily)
 	assert_error("CREATE error executing insert statement", err)
 
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
 	assert_error("CREATE error fetching last insert id", err)
 
-	output := fmt.Sprintf("CREATE spend created: %s with id %d\n", strings.Join(input, " "), id_of_inserted)
+	output := fmt.Sprintf("CREATE: '%s %s %s %s'", s.name, s.amount, s.date, s.tag)
 
 	return output, id_of_inserted
 }
@@ -431,22 +427,22 @@ func assert_error(message string, err error) {
 }
 
 // Validate input
-func Validate(args []string) (string, int64) {
-	action := args[0]
-
-	switch action {
-	case "-cd":
-		return Create(args[1:])
-	default:
-		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
-	}
-
-	return "There should be an error", 0
-}
+// func Validate(args []string) (string, int64) {
+// 	action := args[0]
+//
+// 	switch action {
+// 	case "-cd":
+// 		return Create(args[1:])
+// 	default:
+// 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
+// 	}
+//
+// 	return "There should be an error", 0
+// }
 
 func main() {
 	// fmt.Println(os.Args[1:])
-	InitDB()
-	fmt.Println(Validate(os.Args[1:]))
+	// InitDB()
+	// fmt.Println(Validate(os.Args[1:]))
 	// fmt.Println(Read(1))
 }
