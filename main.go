@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	// "errors"
 	"fmt"
 	"log"
+
 	// "os"
 	"strconv"
 	"strings"
@@ -58,11 +60,11 @@ func InitDB() {
 }
 
 type Daily struct {
-	name,
-	amount,
-	date,
-	tag,
-	freq string
+	item   string
+	amount float64
+	date   time.Time
+	tag    string
+	freq   bool
 }
 
 type Ahead struct {
@@ -87,179 +89,182 @@ type Foretell struct {
 }
 
 // Create
-func (s Daily) Create() (string, int64) {
+func (s Daily) Create() (int64, error) {
 
-	amount, err := strconv.ParseFloat(s.amount, 64)
-	assert_error(fmt.Sprintf("CREATE error converting %s into float", s.amount), err)
-
-	date := ParseDate(s.date)
-
-	tag := GetTagID(s.tag)
-
-	var is_daily bool
-	switch s.freq {
-	case "", "daily":
-		is_daily = true
-	case "monthly":
-		is_daily = false
-	default:
-		log.Fatalf("CREATE don't know what %s means", s.freq)
+	tag_id, err := GetTagID(s.tag)
+	if err != nil {
+		return 0, fmt.Errorf("create error getting tag id: '%w'", err)
 	}
 
 	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
 		INSERT INTO spend(item, amount, date, tag_id, is_daily)
 		VALUES (?, ?, ?, ?, ?)
 	`))
-	assert_error("CREATE error preparing insert statement", err)
+	if err != nil {
+		return 0, fmt.Errorf("create error preparing insert statement: '%w'", err)
+	}
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(s.name, amount, date, tag, is_daily)
-	assert_error("CREATE error executing insert statement", err)
+	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, tag_id, s.freq)
+	if err != nil {
+		return 0, fmt.Errorf("create error executing insert statement: '%w'", err)
+	}
 
 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
-	assert_error("CREATE error fetching last insert id", err)
+	if err != nil {
+		return 0, fmt.Errorf("create error fetching last insert id: '%w'", err)
+	}
 
-	output := fmt.Sprintf("CREATE: '%s %s %s %s'", s.name, s.amount, s.date, s.tag)
-
-	return output, id_of_inserted
+	return id_of_inserted, nil
 }
 
 // Get info by id
-func Read(target_id int64) ([5]string, string) {
+func (s Daily) Read(target_id int64) (Daily, error) {
 
 	get := DB.QueryRow("SELECT item, amount, date, tag_id, is_daily FROM spend WHERE id=?", target_id)
 
 	var result [5]string
 	err := get.Scan(&result[0], &result[1], &result[2], &result[3], &result[4])
-	assert_error(fmt.Sprintf("READ error scanning get spend info by id(%d) statement", target_id), err)
-
-	result[2] = UnparseDate(result[2])
-
-	result[3] = GetTagValue(result[3])
-
-	var is_daily string
-	switch result[4] {
-	case "1":
-		is_daily = "daily"
-	case "0":
-		is_daily = "monthly"
-	default:
-		log.Fatal()
+	if err != nil {
+		return Daily{}, fmt.Errorf("read error scanning read query: '%w'", err)
 	}
-	result[4] = is_daily
 
-	output := fmt.Sprintf("READ spend info: %d %s", target_id, strings.Join(result[:], " "))
+	s.item = result[0]
 
-	return result, output
+	s.amount, err = strconv.ParseFloat(result[1], 64)
+	if err != nil {
+		return Daily{}, fmt.Errorf("read error converting amount to float: '%w'", err)
+	}
+
+	layout := "2006-01-02 15:04:05-07:00"
+	s.date, err = time.Parse(layout, result[2])
+	if err != nil {
+		return Daily{}, fmt.Errorf("read error parsing date from db: '%w'", err)
+	}
+
+	s.tag, err = GetTagValue(result[3])
+	if err != nil {
+		return Daily{}, err
+	}
+
+	if result[4] == "1" {
+		s.freq = true
+	} else {
+		s.freq = false
+	}
+
+	return s, nil
 }
 
 // Edit a spend
-func Edit(target_id int64, target_info int, to_replace_with string) (string, string) {
-
-	if target_info < 0 || target_info > 3 {
-		log.Fatalf("EDIT error choosing target info: Out of Bounds")
-	}
-
-	var target string
-	switch target_info {
-	case 0:
-		target = "item"
-	case 1:
-		target = "amount"
-	case 2:
-		target = "date"
-	case 3:
-		target = "tag_id"
-		to_replace_with = strconv.FormatInt(GetTagID(to_replace_with), 10)
-	}
-
-	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE spend SET %s = ? WHERE id = ?", target))
-	assert_error("EDIT error preparing edit statement", err)
-	defer edit_stmt.Close()
-
-	_, err = edit_stmt.Exec(to_replace_with, target_id)
-	assert_error("EDIT error executing edit statement", err)
-
-	daily_value, _ := Read(target_id)
-	replaced_value := daily_value[target_info]
-
-	return fmt.Sprintf("EDIT edited spend: id(%d) from (%s) into (%s)",
-			target_id, replaced_value, to_replace_with),
-		to_replace_with
-}
-
-// Remove spend
-func Remove(target_id int64) string {
-
-	target, _ := Read(target_id)
-
-	delete_stmt, err := DB.Prepare("DELETE FROM spend WHERE id=?")
-	assert_error("REMOVE error preparing delete statement:", err)
-
-	_, err = delete_stmt.Exec(target_id)
-	assert_error("REMOVE error executing delete statement:", err)
-
-	return fmt.Sprintf("REMOVE removed spend: %d %s", target_id, strings.Join(target[:], " "))
-}
-
-// Create spend ahead
-func CreateAhead(amount float64, date string) (string, int64) {
-
-	parsed_date := ParseDate(date)
-
-	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
-
-	assert_error("CREATE error preparing insert statement", err)
-	defer insert_stmt.Close()
-
-	exec_insert_stmt, err := insert_stmt.Exec(amount, parsed_date)
-	assert_error("CREATE error executing insert statement", err)
-
-	id_of_inserted, err := exec_insert_stmt.LastInsertId()
-	assert_error("CREATE error fetching last insert id", err)
-
-	date = parsed_date.Format("1-2-2006")
-	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
-		amount,
-		date,
-		id_of_inserted)
-
-	return output, id_of_inserted
-
-}
-
-// Read spend ahead
-func ReadAhead(target_id int64) (float64, string) {
-
-	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
-
-	var result [2]string
-	err := get.Scan(&result[0], &result[1])
-	assert_error(fmt.Sprintf("READ AHEAD error scanning get item info by id(%d) statement", target_id), err)
-
-	parsed_amount, err := strconv.ParseFloat(result[0], 64)
-	assert_error("READ AHEAD error parsing float", err)
-	parsed_date := UnparseDate(result[1])
-
-	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", target_id, parsed_amount, parsed_date)
-
-	return parsed_amount, output
-
-}
-
-// Remove spend ahead
-func RemoveAhead(target_id int64) string {
-
-	amount, _ := ReadAhead(target_id)
-
-	delete_stmt, err := DB.Prepare("DELETE FROM ahead WHERE id=?")
-	assert_error("REMOVE AHEAD error preparing delete statement:", err)
-
-	_, err = delete_stmt.Exec(target_id)
-	assert_error("REMOVE AHEAD error executing delete statement:", err)
-
-	return fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", amount, target_id)
-}
+// func Edit(target_id int64, target_info int, to_replace_with string) (string, string) {
+//
+// 	if target_info < 0 || target_info > 3 {
+// 		log.Fatalf("EDIT error choosing target info: Out of Bounds")
+// 	}
+//
+// 	var target string
+// 	switch target_info {
+// 	case 0:
+// 		target = "item"
+// 	case 1:
+// 		target = "amount"
+// 	case 2:
+// 		target = "date"
+// 	case 3:
+// 		target = "tag_id"
+// 		to_replace_with = strconv.FormatInt(GetTagID(to_replace_with), 10)
+// 	}
+//
+// 	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE spend SET %s = ? WHERE id = ?", target))
+// 	assert_error("EDIT error preparing edit statement", err)
+// 	defer edit_stmt.Close()
+//
+// 	_, err = edit_stmt.Exec(to_replace_with, target_id)
+// 	assert_error("EDIT error executing edit statement", err)
+//
+// 	daily_value, _ := Read(target_id)
+// 	replaced_value := daily_value[target_info]
+//
+// 	return fmt.Sprintf("EDIT edited spend: id(%d) from (%s) into (%s)",
+// 			target_id, replaced_value, to_replace_with),
+// 		to_replace_with
+// }
+//
+// // Remove spend
+// func Remove(target_id int64) string {
+//
+// 	target, _ := Read(target_id)
+//
+// 	delete_stmt, err := DB.Prepare("DELETE FROM spend WHERE id=?")
+// 	assert_error("REMOVE error preparing delete statement:", err)
+//
+// 	_, err = delete_stmt.Exec(target_id)
+// 	assert_error("REMOVE error executing delete statement:", err)
+//
+// 	return fmt.Sprintf("REMOVE removed spend: %d %s", target_id, strings.Join(target[:], " "))
+// }
+//
+// // Create spend ahead
+// func CreateAhead(amount float64, date string) (string, int64) {
+//
+// 	parsed_date := ParseDate(date)
+//
+// 	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
+//
+// 	assert_error("CREATE error preparing insert statement", err)
+// 	defer insert_stmt.Close()
+//
+// 	exec_insert_stmt, err := insert_stmt.Exec(amount, parsed_date)
+// 	assert_error("CREATE error executing insert statement", err)
+//
+// 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
+// 	assert_error("CREATE error fetching last insert id", err)
+//
+// 	date = parsed_date.Format("1-2-2006")
+// 	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
+// 		amount,
+// 		date,
+// 		id_of_inserted)
+//
+// 	return output, id_of_inserted
+//
+// }
+//
+//// Read spend ahead
+// func ReadAhead(target_id int64) (float64, string) {
+//
+// 	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
+//
+// 	var result [2]string
+// 	err := get.Scan(&result[0], &result[1])
+// 	assert_error(fmt.Sprintf("READ AHEAD error scanning get item info by id(%d) statement", target_id), err)
+//
+// 	parsed_amount, err := strconv.ParseFloat(result[0], 64)
+// 	assert_error("READ AHEAD error parsing float", err)
+//
+// 	parsed_date, err := UnparseDate(result[1])
+// 	if err != nil
+//
+// 	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", target_id, parsed_amount, parsed_date)
+//
+// 	return parsed_amount, output
+//
+// }
+//
+// // Remove spend ahead
+// func RemoveAhead(target_id int64) string {
+//
+// 	amount, _ := ReadAhead(target_id)
+//
+// 	delete_stmt, err := DB.Prepare("DELETE FROM ahead WHERE id=?")
+// 	assert_error("REMOVE AHEAD error preparing delete statement:", err)
+//
+// 	_, err = delete_stmt.Exec(target_id)
+// 	assert_error("REMOVE AHEAD error executing delete statement:", err)
+//
+// 	return fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", amount, target_id)
+// }
 
 // Forecast
 func Forecast() {
@@ -349,73 +354,93 @@ func Forecast() {
 }
 
 // Get Date from time.Time structure
-func UnparseDate(time_struct string) string {
+func UnparseDate(time_struct string) (string, error) {
 
 	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
-	assert_error(fmt.Sprintf("Error Parsing time.Time %s", time_struct), err)
+	if err != nil {
+		return "", fmt.Errorf("unparse date error parsing date: '%w'", err)
+	}
 
 	date := t.Format("1-2-2006")
 
-	return date
+	return date, nil
 
 }
 
 // Date formatting
-func ParseDate(unparsed string) time.Time {
+func ParseDate(unparsed string) (time.Time, error) {
 	split_unparsed := strings.Split(unparsed, "-")
 
 	month, err := strconv.Atoi(split_unparsed[0])
+	if err != nil {
+		return time.Time{}, errors.New("error converting month to int")
+	}
 	assert_error("Error converting month to int", err)
 
 	day, err := strconv.Atoi(split_unparsed[1])
-	assert_error("Error converting day to int", err)
+	if err != nil {
+		return time.Time{}, errors.New("error converting day to int")
+	}
 
 	year, err := strconv.Atoi(split_unparsed[2])
-	assert_error("Error converting year to int", err)
+	if err != nil {
+		return time.Time{}, errors.New("error converting year to int")
+	}
 
 	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 	if !(t.Year() == year && int(t.Month()) == month && t.Day() == day) {
-		log.Fatalf("Invalid date %d-%d-%d", month, day, year)
+		return time.Time{}, errors.New("ivalid date format")
 	}
 
-	return t
+	return t, nil
 }
 
 // Get tag name by id
-func GetTagValue(target_id string) string {
+func GetTagValue(target_id string) (string, error) {
 
 	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", target_id)
 
 	var result string
 	err := get_tag_name.Scan(&result)
+	if err != nil {
+		return "", fmt.Errorf("tag value error scanning get tag name statement: '%w'", err)
+	}
 	assert_error("Error scanning Get Tag Name by ID", err)
 
-	return result
+	return result, nil
 
 }
 
 // Inserting or getting a tag
-func GetTagID(tag_name string) int64 {
+func GetTagID(tag_name string) (int64, error) {
 
 	var tag_id int64
 	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
 
 	if err == sql.ErrNoRows {
 		statement, err := DB.Prepare("INSERT INTO tags(name) VALUES (?)")
-		assert_error(fmt.Sprintf("Error 'preparing for insert' new tag(%s) in tags table", tag_name), err)
+		if err != nil {
+			return 0, fmt.Errorf("tag error preparing insert statement: '%w'", err)
+		}
 		defer statement.Close()
 
 		result, err := statement.Exec(tag_name)
-		assert_error(fmt.Sprintf("Error 'inserting' new tag(%s) in tags table", tag_name), err)
+		if err != nil {
+			return 0, fmt.Errorf("tag error executing insert statement: '%w'", err)
+		}
 
-		tag_id, err := result.LastInsertId()
+		tag_id, err = result.LastInsertId()
 		assert_error(fmt.Sprintf("Error getting LastInsertId after inserting new tag(%s)", tag_name), err)
-
-		return tag_id
+		if err != nil {
+			return 0, fmt.Errorf("tag error fetching last insert id: '%w'", err)
+		}
 	}
 
-	assert_error(fmt.Sprintf("Error querying row of '%s'", tag_name), err)
-	return tag_id
+	if err != nil {
+		return 0, fmt.Errorf("tag error query tag name: '%w'", err)
+	}
+
+	return tag_id, nil
 
 }
 
@@ -445,4 +470,5 @@ func main() {
 	// InitDB()
 	// fmt.Println(Validate(os.Args[1:]))
 	// fmt.Println(Read(1))
+	fmt.Println(ParseDate("11-30-2001"))
 }

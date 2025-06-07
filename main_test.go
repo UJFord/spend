@@ -4,11 +4,13 @@ import (
 	// "fmt"
 	// "strings"
 	"testing"
+	"time"
 )
 
 var (
 	daily_inserted_id, monthly_inserted_id, ahead_inserted_id int64
 )
+var date = time.Date(2011, 11, 30, 0, 0, 0, 0, time.Local)
 
 // Adding
 func TestCreate(t *testing.T) {
@@ -16,67 +18,103 @@ func TestCreate(t *testing.T) {
 	InitDB()
 
 	create_tests := []struct {
-		name   string
-		spend  Daily
-		result string
+		name     string
+		spend    Daily
+		expected string
 	}{
-		{name: "empty frequency",
-			spend:  Daily{"daily item", "60", "11-30-2001", "testing", ""},
-			result: "CREATE: 'daily item 60 11-30-2001 testing'",
-		},
 		{name: "daily",
-			spend:  Daily{"daily item", "60", "11-30-2001", "testing", "daily"},
-			result: "CREATE: 'daily item 60 11-30-2001 testing'",
+			spend:    Daily{"daily item", 60.0, date, "testing", true},
+			expected: "CREATE: 'daily item 60 11-30-2001 testing'",
 		},
 		{name: "monthly",
-			spend:  Daily{"monthly item", "60", "11-30-2001", "testing", "monthly"},
-			result: "CREATE: 'monthly item 60 11-30-2001 testing'",
+			spend:    Daily{"monthly item", 123.0, date, "testing", false},
+			expected: "CREATE: 'monthly item 60 11-30-2001 testing'",
 		},
 	}
 
 	for _, tt := range create_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			var got string
-
-			switch tt.spend.freq {
-			case "", "daily":
-				got, daily_inserted_id = tt.spend.Create()
-			case "monthly":
-				got, monthly_inserted_id = tt.spend.Create()
+			var err error
+			if tt.spend.freq {
+				daily_inserted_id, err = tt.spend.Create()
+			} else {
+				monthly_inserted_id, err = tt.spend.Create()
 			}
 
-			if got != tt.result {
-				t.Errorf("got %q want %q", got, tt.result)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}
 }
 
-// // Reading
-// func TestRead(t *testing.T) {
-//
-// 	t.Run("daily", func(t *testing.T) {
-// 		spend := []string{"daily item", "60", "11-30-2001", "testing", "daily"}
-// 		_, got := Read(daily_inserted_id)
-//
-// 		want := fmt.Sprintf("READ spend info: %d %s",
-// 			daily_inserted_id, strings.Join(spend, " "))
-// 		log_error(t, got, want)
-// 	})
-//
-// 	t.Run("monthly", func(t *testing.T) {
-// 		spend := []string{"monthly item", "4500", "11-30-2001", "testing", "monthly"}
-// 		_, got := Read(monthly_inserted_id)
-//
-// 		want := fmt.Sprintf("READ spend info: %d %s",
-// 			monthly_inserted_id, strings.Join(spend, " "))
-// 		log_error(t, got, want)
-// 	})
-// }
-//
+// Reading
+func TestRead(t *testing.T) {
+
+	read_tests := []struct {
+		name  string
+		id    int64
+		spend Daily
+	}{
+		{name: "daily",
+			id:    daily_inserted_id,
+			spend: Daily{"daily item", 60.0, date, "testing", true},
+		},
+		{name: "monthly",
+			id:    monthly_inserted_id,
+			spend: Daily{"monthly item", 123.0, date, "testing", false},
+		},
+	}
+
+	for _, tt := range read_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.spend.Read(tt.id)
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			if got != tt.spend {
+				t.Errorf("got %#v want %#v", got, tt.spend)
+			}
+		})
+	}
+}
+
 // // Editing
 // func TestEdit(t *testing.T) {
+//
+// 	read_tests := []struct {
+// 		name  string
+// 		id    int64
+// 		spend Daily
+// 	}{
+// 		{name: "daily",
+// 			id:    daily_inserted_id,
+// 			spend: Daily{"daily item", 60.0, time, "testing", true},
+// 		},
+// 		{name: "monthly",
+// 			id:    monthly_inserted_id,
+// 			spend: Daily{"monthly item", 123.0, time, "testing", false},
+// 		},
+// 	}
+//
+// 	for _, tt := range read_tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+//
+// 			got, err := tt.spend.Read(tt.id)
+//
+// 			if err != nil {
+// 				t.Error(err)
+// 			}
+//
+// 			if got != tt.spend {
+// 				t.Errorf("got %#v want %#v", got, tt.spend)
+// 			}
+// 		})
+// 	}
 //
 // 	t.Run("daily", func(t *testing.T) {
 // 		target_info := 0
@@ -100,6 +138,7 @@ func TestCreate(t *testing.T) {
 // 		log_error(t, got, want)
 // 	})
 // }
+
 //
 // // Removing
 // func TestRemove(t *testing.T) {
@@ -158,10 +197,3 @@ func TestCreate(t *testing.T) {
 //
 // 	log_error(t, got, want)
 // }
-
-// return error
-func log_error(t testing.TB, got, want string) {
-	if got != want {
-		t.Errorf("got %q want %q", got, want)
-	}
-}
