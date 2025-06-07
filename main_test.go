@@ -84,60 +84,44 @@ func TestRead(t *testing.T) {
 }
 
 // // Editing
-// func TestEdit(t *testing.T) {
-//
-// 	read_tests := []struct {
-// 		name  string
-// 		id    int64
-// 		spend Daily
-// 	}{
-// 		{name: "daily",
-// 			id:    daily_inserted_id,
-// 			spend: Daily{"daily item", 60.0, time, "testing", true},
-// 		},
-// 		{name: "monthly",
-// 			id:    monthly_inserted_id,
-// 			spend: Daily{"monthly item", 123.0, time, "testing", false},
-// 		},
-// 	}
-//
-// 	for _, tt := range read_tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-//
-// 			got, err := tt.spend.Read(tt.id)
-//
-// 			if err != nil {
-// 				t.Error(err)
-// 			}
-//
-// 			if got != tt.spend {
-// 				t.Errorf("got %#v want %#v", got, tt.spend)
-// 			}
-// 		})
-// 	}
-//
-// 	t.Run("daily", func(t *testing.T) {
-// 		target_info := 0
-// 		replace_with := "daily item replacement"
-//
-// 		got, replaced_info := Edit(daily_inserted_id, target_info, replace_with)
-// 		want := fmt.Sprintf("EDIT edited spend: id(%d) from (%s) into (%s)",
-// 			daily_inserted_id, replace_with, replaced_info)
-//
-// 		log_error(t, got, want)
-// 	})
-//
-// 	t.Run("monthly", func(t *testing.T) {
-// 		target_info := 0
-// 		replace_with := "monthly item replacement"
-//
-// 		got, replaced_info := Edit(monthly_inserted_id, target_info, replace_with)
-// 		want := fmt.Sprintf("EDIT edited spend: id(%d) from (%s) into (%s)",
-// 			monthly_inserted_id, replace_with, replaced_info)
-//
-// 		log_error(t, got, want)
-// 	})
-// }
+func TestEdit(t *testing.T) {
+
+	read_tests := []struct {
+		name         string
+		id           int64
+		value        any
+		target       int
+		edited_spend Daily
+	}{
+		{name: "daily",
+			id:           daily_inserted_id,
+			target:       0,
+			value:        "daily replacement",
+			edited_spend: Daily{"daily replacement", 60.0, date, "testing", true},
+		},
+		{name: "monthly",
+			id:           monthly_inserted_id,
+			target:       1,
+			value:        456.7,
+			edited_spend: Daily{"monthly item", 123.0, date, "testing", false},
+		},
+	}
+
+	for _, tt := range read_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.Edit(tt.id)
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			if got != tt.spend {
+				t.Errorf("got %#v want %#v", got, tt.spend)
+			}
+		})
+	}
+}
 
 //
 // // Removing
