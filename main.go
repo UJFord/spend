@@ -68,17 +68,30 @@ type Daily struct {
 	isDaily bool
 }
 
-type Ahead struct {
-	amount float64
-	date   time.Time
-}
-
 type Spend interface {
 	SetID(int64) Daily
+	GetStruct() Daily
+
 	Create() (Daily, error)
 	Read(int64) (Daily, error)
 	Edit(int, any) (Daily, error)
 	Remove() (Daily, error)
+}
+
+type Ahead struct {
+	id     int64
+	amount float64
+	date   time.Time
+}
+
+type SpendAhead interface {
+	SetID(int64) Ahead
+	GetStruct() Ahead
+
+	Create() (Ahead, error)
+	Read(int64) (Ahead, error)
+	// EditAhead(int, any) (Ahead, error)
+	// RemoveAhead() (Ahead, error)
 }
 
 type Foretell struct {
@@ -90,11 +103,26 @@ type Foretell struct {
 	daily_forecast  float64
 }
 
-// Get ID
+// Set ID
 func (s Daily) SetID(id int64) Daily {
 	s.id = id
 
 	return s
+}
+
+func (a Ahead) SetID(id int64) Ahead {
+	a.id = id
+
+	return a
+}
+
+// Get Struct
+func (s Daily) GetStruct() Daily {
+	return s
+}
+
+func (a Ahead) GetStruct() Ahead {
+	return a
 }
 
 // Create
@@ -125,6 +153,30 @@ func (s Daily) Create() (Daily, error) {
 	}
 
 	return s, nil
+}
+
+func (a Ahead) Create() (Ahead, error) {
+
+	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
+
+	if err != nil {
+		return Ahead{}, fmt.Errorf("create ahead error preparing insert statement: '%w'", err)
+	}
+	defer insert_stmt.Close()
+
+	exec_insert_stmt, err := insert_stmt.Exec(a.amount, a.date)
+	if err != nil {
+		return Ahead{}, fmt.Errorf("create ahead error executing insert statement: '%w'", err)
+	}
+
+	id_of_inserted, err := exec_insert_stmt.LastInsertId()
+	if err != nil {
+		return Ahead{}, fmt.Errorf("create ahead error fetching last insert id: '%w'", err)
+	}
+
+	a.id = id_of_inserted
+
+	return a, nil
 }
 
 // Get info by id
@@ -164,6 +216,33 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 	}
 
 	return s, nil
+}
+
+func (a Ahead) Read(target_id int64) (Ahead, error) {
+	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
+
+	var result [2]string
+	err := get.Scan(&result[0], &result[1])
+	if err != nil {
+		return Ahead{}, fmt.Errorf("read ahead error scanning query stetement: '%w'", err)
+	}
+
+	parsed_amount, err := strconv.ParseFloat(result[0], 64)
+	if err != nil {
+		return Ahead{}, fmt.Errorf("read ahead error parsing amount to float: '%w'", err)
+	}
+
+	a.id = target_id
+
+	a.amount = parsed_amount
+
+	layout := "2006-01-02 15:04:05-07:00"
+	a.date, err = time.Parse(layout, result[1])
+	if err != nil {
+		return Ahead{}, fmt.Errorf("read error parsing date from db: '%w'", err)
+	}
+
+	return a, nil
 }
 
 // Edit a spend

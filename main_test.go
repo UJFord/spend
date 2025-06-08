@@ -35,13 +35,13 @@ func TestCreate(t *testing.T) {
 	for _, tt := range create_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s, err := tt.spend.Create()
+			got, err := tt.spend.Create()
 
-			if s.isDaily {
-				daily_inserted_id = s.id
+			if got.isDaily {
+				daily_inserted_id = got.id
 				tt.spend = tt.spend.SetID(daily_inserted_id)
 			} else {
-				monthly_inserted_id = s.id
+				monthly_inserted_id = got.id
 				tt.spend = tt.spend.SetID(monthly_inserted_id)
 			}
 
@@ -49,8 +49,10 @@ func TestCreate(t *testing.T) {
 				t.Error(err)
 			}
 
-			if s != tt.spend {
-				t.Errorf("got %#v want %#v", s, tt.spend)
+			want := tt.spend
+
+			if got != want {
+				t.Errorf("got %#v want %#v", got, want)
 			}
 		})
 	}
@@ -61,7 +63,7 @@ func TestRead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		spend Daily
+		spend Spend
 	}{
 		{name: "daily",
 			spend: Daily{daily_inserted_id, "daily item", 60.0, date, "testing", true},
@@ -74,14 +76,15 @@ func TestRead(t *testing.T) {
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(tt.spend.id)
-
+			got, err := tt.spend.Read(tt.spend.GetStruct().id)
 			if err != nil {
 				t.Error(err)
 			}
 
+			want := tt.spend
+
 			if got != tt.spend {
-				t.Errorf("got %#v want %#v", got, tt.spend)
+				t.Errorf("got %#v want %#v", got, want)
 			}
 		})
 	}
@@ -94,7 +97,7 @@ func TestEdit(t *testing.T) {
 		name            string
 		value           any
 		field           int
-		new_value_spend Daily
+		new_value_spend Spend
 	}{
 		{name: "daily",
 			field:           0,
@@ -122,8 +125,10 @@ func TestEdit(t *testing.T) {
 				t.Error(err)
 			}
 
-			if got != tt.new_value_spend {
-				t.Errorf("got %#v want %#v", got, tt.new_value_spend)
+			want := tt.new_value_spend
+
+			if got != want {
+				t.Errorf("got %#v want %#v", got, want)
 			}
 		})
 	}
@@ -146,46 +151,81 @@ func TestRemove(t *testing.T) {
 	for _, tt := range remove_test {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s, err := tt.spend.Remove()
+			got, err := tt.spend.Remove()
 
 			if err != nil {
 				t.Error(err)
 			}
 
-			if s != tt.spend {
-				t.Errorf("got '%#v' want '%#v'", s, tt.spend)
+			want := tt.spend
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
 			}
 		})
 	}
 }
 
-//
-// // Spending Ahead
-// var (
-// 	ahead_amount = 999.00
-// 	ahead_date   = "1-20-2025"
-// )
-//
-// func TestCreateAhead(t *testing.T) {
-//
-// 	var got string
-// 	got, ahead_inserted_id = CreateAhead(ahead_amount, ahead_date)
-// 	want := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
-// 		ahead_amount,
-// 		ahead_date,
-// 		ahead_inserted_id)
-//
-// 	log_error(t, got, want)
-// }
-//
-// func TestReadAhead(t *testing.T) {
-//
-// 	_, got := ReadAhead(ahead_inserted_id)
-// 	want := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", ahead_inserted_id, ahead_amount, ahead_date)
-//
-// 	log_error(t, got, want)
-// }
-//
+// Spending Ahead
+func TestCreateAhead(t *testing.T) {
+
+	create_tests := []struct {
+		name  string
+		spend SpendAhead
+	}{
+		{name: "create",
+			spend: Ahead{0, 999.0, date},
+		},
+	}
+
+	for _, tt := range create_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.spend.Create()
+			if err != nil {
+				t.Error(err)
+			}
+
+			ahead_inserted_id = got.id
+			tt.spend = tt.spend.SetID(got.id)
+
+			want := tt.spend
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
+
+func TestReadAhead(t *testing.T) {
+
+	read_tests := []struct {
+		name  string
+		spend SpendAhead
+	}{
+		{name: "read",
+			spend: Ahead{ahead_inserted_id, 999.0, date},
+		},
+	}
+
+	for _, tt := range read_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.spend.Read(ahead_inserted_id)
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.spend
+
+			if got != tt.spend {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
+
 // func TestRemoveAhead(t *testing.T) {
 //
 // 	got := RemoveAhead(ahead_inserted_id)
