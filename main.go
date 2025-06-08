@@ -60,11 +60,12 @@ func InitDB() {
 }
 
 type Daily struct {
-	item   string
-	amount float64
-	date   time.Time
-	tag    string
-	freq   bool
+	id      int64
+	item    string
+	amount  float64
+	date    time.Time
+	tag     string
+	isDaily bool
 }
 
 type Ahead struct {
@@ -75,7 +76,7 @@ type Ahead struct {
 type Spend interface {
 	Create() (string, int64)
 	Read() ([5]string, string)
-	Edit() (string, string)
+	// Edit() (int64, int, string)
 	Remove() string
 }
 
@@ -89,11 +90,11 @@ type Foretell struct {
 }
 
 // Create
-func (s Daily) Create() (int64, error) {
+func (s Daily) Create() (Daily, error) {
 
 	tag_id, err := GetTagID(s.tag)
 	if err != nil {
-		return 0, fmt.Errorf("create error getting tag id: '%w'", err)
+		return s, fmt.Errorf("create error getting tag id: '%w'", err)
 	}
 
 	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
@@ -101,21 +102,21 @@ func (s Daily) Create() (int64, error) {
 		VALUES (?, ?, ?, ?, ?)
 	`))
 	if err != nil {
-		return 0, fmt.Errorf("create error preparing insert statement: '%w'", err)
+		return s, fmt.Errorf("create error preparing insert statement: '%w'", err)
 	}
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, tag_id, s.freq)
+	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, tag_id, s.isDaily)
 	if err != nil {
-		return 0, fmt.Errorf("create error executing insert statement: '%w'", err)
+		return s, fmt.Errorf("create error executing insert statement: '%w'", err)
 	}
 
-	id_of_inserted, err := exec_insert_stmt.LastInsertId()
+	s.id, err = exec_insert_stmt.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("create error fetching last insert id: '%w'", err)
+		return s, fmt.Errorf("create error fetching last insert id: '%w'", err)
 	}
 
-	return id_of_inserted, nil
+	return s, nil
 }
 
 // Get info by id
@@ -129,6 +130,7 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 		return Daily{}, fmt.Errorf("read error scanning read query: '%w'", err)
 	}
 
+	s.id = target_id
 	s.item = result[0]
 
 	s.amount, err = strconv.ParseFloat(result[1], 64)
@@ -148,48 +150,64 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 	}
 
 	if result[4] == "1" {
-		s.freq = true
+		s.isDaily = true
 	} else {
-		s.freq = false
+		s.isDaily = false
 	}
 
 	return s, nil
 }
 
 // Edit a spend
-// func Edit(target_id int64, target_info int, to_replace_with string) (string, string) {
-//
-// 	if target_info < 0 || target_info > 3 {
-// 		log.Fatalf("EDIT error choosing target info: Out of Bounds")
-// 	}
-//
-// 	var target string
-// 	switch target_info {
-// 	case 0:
-// 		target = "item"
-// 	case 1:
-// 		target = "amount"
-// 	case 2:
-// 		target = "date"
-// 	case 3:
-// 		target = "tag_id"
-// 		to_replace_with = strconv.FormatInt(GetTagID(to_replace_with), 10)
-// 	}
-//
-// 	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE spend SET %s = ? WHERE id = ?", target))
-// 	assert_error("EDIT error preparing edit statement", err)
-// 	defer edit_stmt.Close()
-//
-// 	_, err = edit_stmt.Exec(to_replace_with, target_id)
-// 	assert_error("EDIT error executing edit statement", err)
-//
-// 	daily_value, _ := Read(target_id)
-// 	replaced_value := daily_value[target_info]
-//
-// 	return fmt.Sprintf("EDIT edited spend: id(%d) from (%s) into (%s)",
-// 			target_id, replaced_value, to_replace_with),
-// 		to_replace_with
-// }
+func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
+
+	if target_field < 0 || target_field > 4 {
+		log.Fatalf("EDIT error choosing target info: Out of Bounds")
+	}
+
+	var target string
+	switch target_field {
+	case 0:
+		target = "item"
+	case 1:
+		target = "amount"
+	case 2:
+		target = "date"
+	case 3:
+		target = "tag_id"
+
+		if str, ok := replace_value.(string); ok {
+
+			tag_id, err := GetTagID(str)
+			if err != nil {
+				return Daily{}, err
+			}
+
+			replace_value = strconv.FormatInt(tag_id, 10)
+		}
+	case 4:
+		target = "is_daily"
+	}
+
+	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE spend SET %s = ? WHERE id = ?", target))
+	if err != nil {
+		return Daily{}, fmt.Errorf("edit error preparing edit statement: '%w'", err)
+	}
+	defer edit_stmt.Close()
+
+	_, err = edit_stmt.Exec(replace_value, s.id)
+	if err != nil {
+		return Daily{}, fmt.Errorf("edit error executing edit statement: '%w'", err)
+	}
+
+	s, err = s.Read(s.id)
+	if err != nil {
+		return Daily{}, err
+	}
+
+	return s, nil
+}
+
 //
 // // Remove spend
 // func Remove(target_id int64) string {

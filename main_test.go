@@ -23,11 +23,11 @@ func TestCreate(t *testing.T) {
 		expected string
 	}{
 		{name: "daily",
-			spend:    Daily{"daily item", 60.0, date, "testing", true},
+			spend:    Daily{0, "daily item", 60.0, date, "testing", true},
 			expected: "CREATE: 'daily item 60 11-30-2001 testing'",
 		},
 		{name: "monthly",
-			spend:    Daily{"monthly item", 123.0, date, "testing", false},
+			spend:    Daily{0, "monthly item", 123.0, date, "testing", false},
 			expected: "CREATE: 'monthly item 60 11-30-2001 testing'",
 		},
 	}
@@ -35,15 +35,22 @@ func TestCreate(t *testing.T) {
 	for _, tt := range create_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			var err error
-			if tt.spend.freq {
-				daily_inserted_id, err = tt.spend.Create()
+			s, err := tt.spend.Create()
+
+			if s.isDaily {
+				daily_inserted_id = s.id
+				tt.spend.id = daily_inserted_id
 			} else {
-				monthly_inserted_id, err = tt.spend.Create()
+				monthly_inserted_id = s.id
+				tt.spend.id = monthly_inserted_id
 			}
 
 			if err != nil {
 				t.Error(err)
+			}
+
+			if s != tt.spend {
+				t.Errorf("got %#v want %#v", s, tt.spend)
 			}
 		})
 	}
@@ -54,23 +61,20 @@ func TestRead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		id    int64
 		spend Daily
 	}{
 		{name: "daily",
-			id:    daily_inserted_id,
-			spend: Daily{"daily item", 60.0, date, "testing", true},
+			spend: Daily{daily_inserted_id, "daily item", 60.0, date, "testing", true},
 		},
 		{name: "monthly",
-			id:    monthly_inserted_id,
-			spend: Daily{"monthly item", 123.0, date, "testing", false},
+			spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, "testing", false},
 		},
 	}
 
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(tt.id)
+			got, err := tt.spend.Read(tt.spend.id)
 
 			if err != nil {
 				t.Error(err)
@@ -87,37 +91,39 @@ func TestRead(t *testing.T) {
 func TestEdit(t *testing.T) {
 
 	read_tests := []struct {
-		name         string
-		id           int64
-		value        any
-		target       int
-		edited_spend Daily
+		name            string
+		value           any
+		field           int
+		new_value_spend Daily
 	}{
 		{name: "daily",
-			id:           daily_inserted_id,
-			target:       0,
-			value:        "daily replacement",
-			edited_spend: Daily{"daily replacement", 60.0, date, "testing", true},
+			field:           0,
+			value:           "daily replacement",
+			new_value_spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, "testing", true},
+		},
+		{name: "tag replace",
+			field:           3,
+			value:           "tag replacement",
+			new_value_spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, "tag replacement", false},
 		},
 		{name: "monthly",
-			id:           monthly_inserted_id,
-			target:       1,
-			value:        456.7,
-			edited_spend: Daily{"monthly item", 123.0, date, "testing", false},
+			field:           1,
+			value:           456.7,
+			new_value_spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, "tag replacement", false},
 		},
 	}
 
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.Edit(tt.id)
+			got, err := tt.new_value_spend.Edit(tt.field, tt.value)
 
 			if err != nil {
 				t.Error(err)
 			}
 
-			if got != tt.spend {
-				t.Errorf("got %#v want %#v", got, tt.spend)
+			if got != tt.new_value_spend {
+				t.Errorf("got %#v want %#v", got, tt.new_value_spend)
 			}
 		})
 	}
