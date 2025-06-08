@@ -19,7 +19,7 @@ func TestCreate(t *testing.T) {
 
 	create_tests := []struct {
 		name     string
-		spend    Daily
+		spend    Spend
 		expected string
 	}{
 		{name: "daily",
@@ -39,10 +39,10 @@ func TestCreate(t *testing.T) {
 
 			if s.isDaily {
 				daily_inserted_id = s.id
-				tt.spend.id = daily_inserted_id
+				tt.spend = tt.spend.SetID(daily_inserted_id)
 			} else {
 				monthly_inserted_id = s.id
-				tt.spend.id = monthly_inserted_id
+				tt.spend = tt.spend.SetID(monthly_inserted_id)
 			}
 
 			if err != nil {
@@ -90,7 +90,7 @@ func TestRead(t *testing.T) {
 // // Editing
 func TestEdit(t *testing.T) {
 
-	read_tests := []struct {
+	edit_tests := []struct {
 		name            string
 		value           any
 		field           int
@@ -113,7 +113,7 @@ func TestEdit(t *testing.T) {
 		},
 	}
 
-	for _, tt := range read_tests {
+	for _, tt := range edit_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := tt.new_value_spend.Edit(tt.field, tt.value)
@@ -129,30 +129,36 @@ func TestEdit(t *testing.T) {
 	}
 }
 
-//
-// // Removing
-// func TestRemove(t *testing.T) {
-//
-// 	t.Run("daily", func(t *testing.T) {
-// 		spend := []string{"daily item replacement", "60", "11-30-2001", "testing", "daily"}
-//
-// 		got := Remove(daily_inserted_id)
-// 		want := fmt.Sprintf("REMOVE removed spend: %d %s",
-// 			daily_inserted_id, strings.Join(spend, " "))
-//
-// 		log_error(t, got, want)
-// 	})
-//
-// 	t.Run("monthly", func(t *testing.T) {
-// 		spend := []string{"monthly item replacement", "4500", "11-30-2001", "testing", "monthly"}
-//
-// 		got := Remove(monthly_inserted_id)
-// 		want := fmt.Sprintf("REMOVE removed spend: %d %s",
-// 			monthly_inserted_id, strings.Join(spend, " "))
-//
-// 		log_error(t, got, want)
-// 	})
-// }
+func TestRemove(t *testing.T) {
+
+	remove_test := []struct {
+		name  string
+		spend Daily
+	}{
+		{name: "daily",
+			spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, "testing", true},
+		},
+		{name: "monthly",
+			spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, "tag replacement", false},
+		},
+	}
+
+	for _, tt := range remove_test {
+		t.Run(tt.name, func(t *testing.T) {
+
+			s, err := tt.spend.Remove()
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			if s != tt.spend {
+				t.Errorf("got '%#v' want '%#v'", s, tt.spend)
+			}
+		})
+	}
+}
+
 //
 // // Spending Ahead
 // var (

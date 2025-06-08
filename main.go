@@ -74,10 +74,11 @@ type Ahead struct {
 }
 
 type Spend interface {
-	Create() (string, int64)
-	Read() ([5]string, string)
-	// Edit() (int64, int, string)
-	Remove() string
+	SetID(int64) Daily
+	Create() (Daily, error)
+	Read(int64) (Daily, error)
+	Edit(int, any) (Daily, error)
+	Remove() (Daily, error)
 }
 
 type Foretell struct {
@@ -87,6 +88,13 @@ type Foretell struct {
 	overshoot_total float64
 	income_total    float64
 	daily_forecast  float64
+}
+
+// Get ID
+func (s Daily) SetID(id int64) Daily {
+	s.id = id
+
+	return s
 }
 
 // Create
@@ -208,20 +216,27 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 	return s, nil
 }
 
-//
-// // Remove spend
-// func Remove(target_id int64) string {
-//
-// 	target, _ := Read(target_id)
-//
-// 	delete_stmt, err := DB.Prepare("DELETE FROM spend WHERE id=?")
-// 	assert_error("REMOVE error preparing delete statement:", err)
-//
-// 	_, err = delete_stmt.Exec(target_id)
-// 	assert_error("REMOVE error executing delete statement:", err)
-//
-// 	return fmt.Sprintf("REMOVE removed spend: %d %s", target_id, strings.Join(target[:], " "))
-// }
+// Remove spend
+func (s Daily) Remove() (Daily, error) {
+
+	s, err := s.Read(s.id)
+	if err != nil {
+		return Daily{}, err
+	}
+
+	delete_stmt, err := DB.Prepare("DELETE FROM spend WHERE id=?")
+	if err != nil {
+		return Daily{}, fmt.Errorf("remove error preparing delete statement: '%w'", err)
+	}
+
+	_, err = delete_stmt.Exec(s.id)
+	if err != nil {
+		return Daily{}, fmt.Errorf("remove error executing delete statement: '%w'", err)
+	}
+
+	return s, nil
+}
+
 //
 // // Create spend ahead
 // func CreateAhead(amount float64, date string) (string, int64) {
