@@ -90,8 +90,7 @@ type SpendAhead interface {
 
 	Create() (Ahead, error)
 	Read(int64) (Ahead, error)
-	// EditAhead(int, any) (Ahead, error)
-	// RemoveAhead() (Ahead, error)
+	Remove() (Ahead, error)
 }
 
 type Foretell struct {
@@ -314,6 +313,26 @@ func (s Daily) Remove() (Daily, error) {
 	}
 
 	return s, nil
+}
+
+func (a Ahead) Remove() (Ahead, error) {
+
+	a, err := a.Read(a.id)
+	if err != nil {
+		return Ahead{}, err
+	}
+
+	delete_stmt, err := DB.Prepare("DELETE FROM ahead WHERE id=?")
+	if err != nil {
+		return Ahead{}, fmt.Errorf("remove error preparing delete statement: '%w'", err)
+	}
+
+	_, err = delete_stmt.Exec(a.id)
+	if err != nil {
+		return Ahead{}, fmt.Errorf("remove error executing delete statement: '%w'", err)
+	}
+
+	return a, nil
 }
 
 //

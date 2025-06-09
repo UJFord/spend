@@ -226,10 +226,30 @@ func TestReadAhead(t *testing.T) {
 	}
 }
 
-// func TestRemoveAhead(t *testing.T) {
-//
-// 	got := RemoveAhead(ahead_inserted_id)
-// 	want := fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", ahead_amount, ahead_inserted_id)
-//
-// 	log_error(t, got, want)
-// }
+func TestRemoveAhead(t *testing.T) {
+
+	remove_tests := []struct {
+		name  string
+		spend Ahead
+	}{
+		{name: "remove",
+			spend: Ahead{ahead_inserted_id, 999.0, date},
+		},
+	}
+
+	for _, tt := range remove_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.spend.Read(tt.spend.id)
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.spend
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
