@@ -22,12 +22,14 @@ var (
 )
 
 // Initalize db
-func InitDB() {
+func InitDB() error {
 	target_db_file = "./spend.db"
 	var err error
 
 	DB, err = sql.Open("sqlite3", target_db_file)
-	assert_error("Error initializing DB", err)
+	if err != nil {
+		return fmt.Errorf("error initializing db: '%w'", err)
+	}
 
 	init_schema := `
 	CREATE TABLE IF NOT EXISTS spend(
@@ -56,7 +58,11 @@ func InitDB() {
 	);
 	`
 	_, err = DB.Exec(init_schema)
-	assert_error("Error executing init DB", err)
+	if err != nil {
+		return fmt.Errorf("error executing init db: '%w'", err)
+	}
+
+	return nil
 }
 
 type Daily struct {
@@ -93,13 +99,17 @@ type SpendAhead interface {
 	Remove() (Ahead, error)
 }
 
-type Foretell struct {
+type Forecast struct {
 	daily_total     float64
-	daily_mean      float64
 	ahead_total     float64
-	overshoot_total float64
 	income_total    float64
 	daily_forecast  float64
+	daily_mean      float64
+	overshoot_total float64
+}
+
+type Foretell interface {
+	Update() (Forecast, error)
 }
 
 // Set ID
@@ -335,76 +345,14 @@ func (a Ahead) Remove() (Ahead, error) {
 	return a, nil
 }
 
-//
-// // Create spend ahead
-// func CreateAhead(amount float64, date string) (string, int64) {
-//
-// 	parsed_date := ParseDate(date)
-//
-// 	insert_stmt, err := DB.Prepare("INSERT INTO ahead(amount, date) VALUES(?, ?)")
-//
-// 	assert_error("CREATE error preparing insert statement", err)
-// 	defer insert_stmt.Close()
-//
-// 	exec_insert_stmt, err := insert_stmt.Exec(amount, parsed_date)
-// 	assert_error("CREATE error executing insert statement", err)
-//
-// 	id_of_inserted, err := exec_insert_stmt.LastInsertId()
-// 	assert_error("CREATE error fetching last insert id", err)
-//
-// 	date = parsed_date.Format("1-2-2006")
-// 	output := fmt.Sprintf("CREATE AHEAD spending amount(%.2f) date(%s) ahead with id(%d)",
-// 		amount,
-// 		date,
-// 		id_of_inserted)
-//
-// 	return output, id_of_inserted
-//
-// }
-//
-//// Read spend ahead
-// func ReadAhead(target_id int64) (float64, string) {
-//
-// 	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
-//
-// 	var result [2]string
-// 	err := get.Scan(&result[0], &result[1])
-// 	assert_error(fmt.Sprintf("READ AHEAD error scanning get item info by id(%d) statement", target_id), err)
-//
-// 	parsed_amount, err := strconv.ParseFloat(result[0], 64)
-// 	assert_error("READ AHEAD error parsing float", err)
-//
-// 	parsed_date, err := UnparseDate(result[1])
-// 	if err != nil
-//
-// 	output := fmt.Sprintf("READ AHEAD id(%d) amount(%.2f) date(%s)", target_id, parsed_amount, parsed_date)
-//
-// 	return parsed_amount, output
-//
-// }
-//
-// // Remove spend ahead
-// func RemoveAhead(target_id int64) string {
-//
-// 	amount, _ := ReadAhead(target_id)
-//
-// 	delete_stmt, err := DB.Prepare("DELETE FROM ahead WHERE id=?")
-// 	assert_error("REMOVE AHEAD error preparing delete statement:", err)
-//
-// 	_, err = delete_stmt.Exec(target_id)
-// 	assert_error("REMOVE AHEAD error executing delete statement:", err)
-//
-// 	return fmt.Sprintf("REMOVE AHEAD spending amount(%.2f) ahead with id(%d)", amount, target_id)
-// }
-
 // Forecast
-func Forecast() {
+func (f Forecast) Update() (Forecast, error) {
 	// ahead sum
 	get_total := func(table string) (float64, error) {
 
 		query := fmt.Sprintf(`
 			SELECT SUM(amount) FROM %s
-			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', now)
+			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', 'now')
 		`, table)
 
 		var total sql.NullFloat64
@@ -413,16 +361,17 @@ func Forecast() {
 			return 0, err
 		}
 
-		if total.Valid {
-			return total.Float64, nil
+		if !total.Valid {
+			return 0, nil
 		}
-		return 0, nil
+
+		return total.Float64, nil
 	}
 
 	get_mean := func() (float64, error) {
 		query := `
 			SELECT SUM(amount) FROM ahead
-			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', now)
+			WHERE strftime('%%Y-%%m', date) = strftime('%%Y-%%m', 'now')
 		`
 
 		var total sql.NullFloat64
@@ -447,40 +396,43 @@ func Forecast() {
 		return days_left
 	}
 
-	var (
-		daily_total     float64
-		daily_mean      float64
-		ahead_total     float64
-		overshoot_total float64
-		income_total    float64
-		daily_forecast  float64
-		err             error
-	)
+	var err error
 
-	daily_total, err = get_total("spend")
-	assert_error("FORECAST error scanning TOTAL of 'spend' table", err)
+	f.daily_total, err = get_total("spend")
+	if err != nil {
+		return Forecast{}, fmt.Errorf("forecast error fetching daily total: '%w'", err)
+	}
 
-	daily_mean, err = get_mean()
-	assert_error("FORECAST error scanning MEAN of 'spend' table", err)
+	f.daily_mean, err = get_mean()
+	if err != nil {
+		return Forecast{}, fmt.Errorf("forecast error fetching daily mean: '%w'", err)
+	}
 
-	ahead_total, err = get_total("ahead")
-	assert_error("FORECAST error scanning TOTAL of 'ahead' table", err)
+	f.ahead_total, err = get_total("ahead")
+	if err != nil {
+		return Forecast{}, fmt.Errorf("forecast error fetching ahead mean: '%w'", err)
+	}
 
-	income_total, err = get_total("income")
-	assert_error("FORECAST error scanning TOTAL of 'income' table", err)
+	f.income_total, err = get_total("income")
+	if err != nil {
+		return Forecast{}, fmt.Errorf("forecast error fetching income total: '%w'", err)
+	}
 
-	daily_forecast = (income_total - (daily_total + ahead_total)) / (float64(days_left()))
+	f.daily_forecast = (f.income_total - (f.daily_total + f.ahead_total)) / (float64(days_left()))
 
-	overshoot_total = income_total - ((daily_total + ahead_total) + (daily_mean * (float64(days_left()))))
+	f.overshoot_total = f.income_total - ((f.daily_total + f.ahead_total) + (f.daily_mean * (float64(days_left()))))
 
-	fmt.Printf(`
-		Daily Total: %.2f\n
-		Ahead Total: %.2f\n
-		Income Total: %.2f\n
-		Daily Forecast: %.2f\n
-		Daily Mean: %.2f\n
-		Overshoot: %.2f\n
-	`, daily_total, ahead_total, income_total, daily_forecast, daily_mean, overshoot_total)
+	// output := fmt.Sprintf(`
+	// Daily Total: %.2f
+	// Ahead Total: %.2f
+	// Income Total: %.2f
+	// Daily Forecast: %.2f
+	// Daily Mean: %.2f
+	// Overshoot: %.2f
+	// `,
+	// daily_total, ahead_total, income_total, daily_forecast, daily_mean, overshoot_total)
+
+	return f, nil
 
 }
 
@@ -506,7 +458,6 @@ func ParseDate(unparsed string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, errors.New("error converting month to int")
 	}
-	assert_error("Error converting month to int", err)
 
 	day, err := strconv.Atoi(split_unparsed[1])
 	if err != nil {
@@ -536,7 +487,6 @@ func GetTagValue(target_id string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("tag value error scanning get tag name statement: '%w'", err)
 	}
-	assert_error("Error scanning Get Tag Name by ID", err)
 
 	return result, nil
 
@@ -561,7 +511,6 @@ func GetTagID(tag_name string) (int64, error) {
 		}
 
 		tag_id, err = result.LastInsertId()
-		assert_error(fmt.Sprintf("Error getting LastInsertId after inserting new tag(%s)", tag_name), err)
 		if err != nil {
 			return 0, fmt.Errorf("tag error fetching last insert id: '%w'", err)
 		}
@@ -575,31 +524,16 @@ func GetTagID(tag_name string) (int64, error) {
 
 }
 
-// Log error
-func assert_error(message string, err error) {
-	if err != nil {
-		log.Fatalf("%q: %q", message, err)
-	}
-}
-
-// Validate input
-// func Validate(args []string) (string, int64) {
-// 	action := args[0]
-//
-// 	switch action {
-// 	case "-cd":
-// 		return Create(args[1:])
-// 	default:
-// 		assert_error(fmt.Sprintf("Invalid action '%s'", action), errors.New("Action not recognized"))
-// 	}
-//
-// 	return "There should be an error", 0
-// }
-
 func main() {
-	// fmt.Println(os.Args[1:])
-	// InitDB()
-	// fmt.Println(Validate(os.Args[1:]))
-	// fmt.Println(Read(1))
-	fmt.Println(ParseDate("11-30-2001"))
+
+	if err := InitDB(); err != nil {
+		log.Fatal(err)
+	}
+
+	f := Forecast{}
+	if f, err := f.Update(); err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Println(f)
+	}
 }
