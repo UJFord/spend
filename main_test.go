@@ -12,7 +12,7 @@ var (
 )
 var date = time.Date(2011, 11, 30, 0, 0, 0, 0, time.Local)
 
-// Adding
+// Daily
 func TestCreate(t *testing.T) {
 
 	InitDB()
@@ -58,7 +58,6 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-// Reading
 func TestRead(t *testing.T) {
 
 	read_tests := []struct {
@@ -90,7 +89,6 @@ func TestRead(t *testing.T) {
 	}
 }
 
-// // Editing
 func TestEdit(t *testing.T) {
 
 	edit_tests := []struct {
@@ -249,6 +247,41 @@ func TestRemoveAhead(t *testing.T) {
 
 			if got != want {
 				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
+
+// Tags
+func TestTagEdit(t *testing.T) {
+
+	edit_tests := []struct {
+		name     string
+		existing string
+		replace  string
+	}{
+		{name: "editing",
+			existing: "testing",
+			replace:  "testing tag edit",
+		},
+		{name: "unnaming",
+			existing: "testing tag edit",
+			replace:  "",
+		},
+	}
+
+	for _, tt := range edit_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := TagEdit(tt.existing, tt.replace)
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.replace
+
+			if got != want {
+				t.Errorf("got %q want %q", got, want)
 			}
 		})
 	}

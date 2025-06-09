@@ -43,7 +43,7 @@ func InitDB() error {
 	);
 	CREATE TABLE IF NOT EXISTS tags(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL
+		name TEXT DEFAULT 'unnamed'
 	);
 	CREATE TABLE IF NOT EXISTS ahead(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -422,18 +422,11 @@ func (f Forecast) Update() (Forecast, error) {
 
 	f.overshoot_total = f.income_total - ((f.daily_total + f.ahead_total) + (f.daily_mean * (float64(days_left()))))
 
-	// output := fmt.Sprintf(`
-	// Daily Total: %.2f
-	// Ahead Total: %.2f
-	// Income Total: %.2f
-	// Daily Forecast: %.2f
-	// Daily Mean: %.2f
-	// Overshoot: %.2f
-	// `,
-	// daily_total, ahead_total, income_total, daily_forecast, daily_mean, overshoot_total)
-
 	return f, nil
+}
 
+func TagEdit(old, new string) (string, error) {
+	return "", nil
 }
 
 // Get Date from time.Time structure
