@@ -19,7 +19,7 @@ func TestCreate(t *testing.T) {
 
 	create_tests := []struct {
 		name     string
-		spend    Spend
+		spend    DailyActions
 		expected string
 	}{
 		{name: "daily",
@@ -62,7 +62,7 @@ func TestRead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		spend Spend
+		spend DailyActions
 	}{
 		{name: "daily",
 			spend: Daily{daily_inserted_id, "daily item", 60.0, date, "testing", true},
@@ -95,7 +95,7 @@ func TestEdit(t *testing.T) {
 		name            string
 		value           any
 		field           int
-		new_value_spend Spend
+		new_value_spend DailyActions
 	}{
 		{name: "daily",
 			field:           0,
@@ -169,7 +169,7 @@ func TestCreateAhead(t *testing.T) {
 
 	create_tests := []struct {
 		name  string
-		spend SpendAhead
+		spend AheadActions
 	}{
 		{name: "create",
 			spend: Ahead{0, 999.0, date},
@@ -200,7 +200,7 @@ func TestReadAhead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		spend SpendAhead
+		spend AheadActions
 	}{
 		{name: "read",
 			spend: Ahead{ahead_inserted_id, 999.0, date},

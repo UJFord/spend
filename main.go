@@ -3,11 +3,9 @@ package main
 import (
 	"database/sql"
 	"errors"
-	// "errors"
 	"fmt"
 	"log"
 
-	// "os"
 	"strconv"
 	"strings"
 	"time"
@@ -52,7 +50,6 @@ func InitDB() error {
 	);
 	CREATE TABLE IF NOT EXISTS income(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
 		amount REAL NOT NULL,
 		date TEXT DEFAULT '1970-01-01 00:00:00+00:00'
 	);
@@ -74,7 +71,7 @@ type Daily struct {
 	isDaily bool
 }
 
-type Spend interface {
+type DailyActions interface {
 	SetID(int64) Daily
 	GetStruct() Daily
 
@@ -90,7 +87,7 @@ type Ahead struct {
 	date   time.Time
 }
 
-type SpendAhead interface {
+type AheadActions interface {
 	SetID(int64) Ahead
 	GetStruct() Ahead
 
@@ -108,8 +105,19 @@ type Forecast struct {
 	overshoot_total float64
 }
 
-type Foretell interface {
+type ForecastActions interface {
 	Update() (Forecast, error)
+}
+
+type Income struct {
+	amount float64
+	date   time.Time
+}
+
+type IncomeActions interface {
+	Add(float64) (Income, error)
+	Edit(float64) (Income, error)
+	Remove(float64) (Income, error)
 }
 
 // Set ID
@@ -213,7 +221,12 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 		return Daily{}, fmt.Errorf("read error parsing date from db: '%w'", err)
 	}
 
-	s.tag, err = GetTagValue(result[3])
+	tag_id, err := strconv.ParseInt(result[3], 10, 64)
+	if err != nil {
+		return Daily{}, fmt.Errorf("read error converting tag_id string to int: '%w'", err)
+	}
+
+	s.tag, err = GetTagValue(tag_id)
 	if err != nil {
 		return Daily{}, err
 	}
@@ -346,6 +359,7 @@ func (a Ahead) Remove() (Ahead, error) {
 }
 
 // Forecast
+
 func (f Forecast) Update() (Forecast, error) {
 	// ahead sum
 	get_total := func(table string) (float64, error) {
@@ -425,11 +439,7 @@ func (f Forecast) Update() (Forecast, error) {
 	return f, nil
 }
 
-func TagEdit(old, new string) (string, error) {
-	return "", nil
-}
-
-// Get Date from time.Time structure
+// DATE
 func UnparseDate(time_struct string) (string, error) {
 
 	t, err := time.Parse("2006-01-02 15:04:05-07:00", time_struct)
@@ -443,7 +453,6 @@ func UnparseDate(time_struct string) (string, error) {
 
 }
 
-// Date formatting
 func ParseDate(unparsed string) (time.Time, error) {
 	split_unparsed := strings.Split(unparsed, "-")
 
@@ -470,8 +479,34 @@ func ParseDate(unparsed string) (time.Time, error) {
 	return t, nil
 }
 
-// Get tag name by id
-func GetTagValue(target_id string) (string, error) {
+// TAG
+func TagEdit(target, replace string) (string, error) {
+
+	target_id, err := GetTagID(target)
+	if err != nil {
+		return "", err
+	}
+
+	edit_stmt, err := DB.Prepare("UPDATE tags SET name = ? WHERE id = ?")
+	if err != nil {
+		return "", fmt.Errorf("tag edit error preparing update statement: '%w'", err)
+	}
+	defer edit_stmt.Close()
+
+	_, err = edit_stmt.Exec(replace, target_id)
+	if err != nil {
+		return "", fmt.Errorf("tag edit error executing edit statement: '%w'", err)
+	}
+
+	new_tag_value, err := GetTagValue(target_id)
+	if err != nil {
+		return "", err
+	}
+
+	return new_tag_value, nil
+}
+
+func GetTagValue(target_id int64) (string, error) {
 
 	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", target_id)
 
@@ -485,7 +520,6 @@ func GetTagValue(target_id string) (string, error) {
 
 }
 
-// Inserting or getting a tag
 func GetTagID(tag_name string) (int64, error) {
 
 	var tag_id int64
@@ -507,14 +541,23 @@ func GetTagID(tag_name string) (int64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("tag error fetching last insert id: '%w'", err)
 		}
-	}
-
-	if err != nil {
+	} else if err != nil {
 		return 0, fmt.Errorf("tag error query tag name: '%w'", err)
 	}
 
 	return tag_id, nil
 
+}
+
+// INCOME
+func (i Income) Add(amount float64) (Income, error) {
+
+	create_stmt, err := DB.Prepare(`
+		INSERT INTO spend(amount, date)
+		VALUES(?, ?)
+	`)
+
+	return Income{}, nil
 }
 
 func main() {
