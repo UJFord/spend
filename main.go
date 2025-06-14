@@ -24,7 +24,7 @@ type Daily struct {
 	item    string
 	amount  float64
 	date    time.Time
-	tag     string
+	tag     Tag
 	isDaily bool
 }
 
@@ -53,6 +53,9 @@ type Tag struct {
 }
 
 type TagActions interface {
+	SetID() (Tag, error)
+	SetValue() (Tag, error)
+
 	Edit(string) (Tag, error)
 }
 
@@ -127,7 +130,8 @@ func InitDB() error {
 // Create
 func (s Daily) Create() (Daily, error) {
 
-	tag_id, err := GetTagID(s.tag)
+	var err error
+	s.tag, err = s.tag.SetID()
 	if err != nil {
 		return Daily{}, fmt.Errorf("create error getting tag id: '%w'", err)
 	}
@@ -141,7 +145,7 @@ func (s Daily) Create() (Daily, error) {
 	}
 	defer insert_stmt.Close()
 
-	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, tag_id, s.isDaily)
+	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, s.tag.id, s.isDaily)
 	if err != nil {
 		return Daily{}, fmt.Errorf("create error executing insert statement: '%w'", err)
 	}
@@ -203,12 +207,12 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 		return Daily{}, fmt.Errorf("read error parsing date from db: '%w'", err)
 	}
 
-	tag_id, err := strconv.ParseInt(result[3], 10, 64)
+	s.tag.id, err = strconv.ParseInt(result[3], 10, 64)
 	if err != nil {
 		return Daily{}, fmt.Errorf("read error converting tag_id string to int: '%w'", err)
 	}
 
-	s.tag, err = GetTagValue(tag_id)
+	s.tag, err = s.tag.SetValue()
 	if err != nil {
 		return Daily{}, err
 	}
@@ -252,6 +256,8 @@ func (a Ahead) Read(target_id int64) (Ahead, error) {
 // Edit a spend
 func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 
+	var err error
+
 	if target_field < 0 || target_field > 4 {
 		log.Fatalf("EDIT error choosing target info: Out of Bounds")
 	}
@@ -267,14 +273,14 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 	case 3:
 		target = "tag_id"
 
-		if str, ok := replace_value.(string); ok {
+		if _, ok := replace_value.(string); ok {
 
-			tag_id, err := GetTagID(str)
+			s.tag, err = s.tag.SetID()
 			if err != nil {
 				return Daily{}, err
 			}
 
-			replace_value = strconv.FormatInt(tag_id, 10)
+			replace_value = strconv.FormatInt(s.tag.id, 10)
 		}
 	case 4:
 		target = "is_daily"
@@ -466,7 +472,7 @@ func (t Tag) Edit(replace string) (Tag, error) {
 
 	var err error
 
-	t.id, err = GetTagID(t.name)
+	t, err = t.SetID()
 	if err != nil {
 		return Tag{}, err
 	}
@@ -482,7 +488,7 @@ func (t Tag) Edit(replace string) (Tag, error) {
 		return Tag{}, fmt.Errorf("tag edit error executing edit statement: '%w'", err)
 	}
 
-	t.name, err = GetTagValue(t.id)
+	t, err = t.SetValue()
 	if err != nil {
 		return Tag{}, err
 	}
@@ -490,46 +496,48 @@ func (t Tag) Edit(replace string) (Tag, error) {
 	return t, nil
 }
 
-func GetTagValue(target_id int64) (string, error) {
+func (t Tag) SetValue() (Tag, error) {
 
-	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", target_id)
+	get_tag_name := DB.QueryRow("SELECT name FROM tags WHERE id=?", t.id)
 
-	var result string
-	err := get_tag_name.Scan(&result)
+	err := get_tag_name.Scan(&t.name)
 	if err != nil {
-		return "", fmt.Errorf("tag value error scanning get tag name statement: '%w'", err)
+		return Tag{}, fmt.Errorf("tag value error scanning get tag name statement: '%w'", err)
 	}
 
-	return result, nil
+	return t, nil
 
 }
 
-func GetTagID(tag_name string) (int64, error) {
+func (t Tag) SetID() (Tag, error) {
 
-	var tag_id int64
-	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", tag_name).Scan(&tag_id)
+	err := DB.QueryRow("SELECT id FROM tags WHERE name = ?", t.name).Scan(&t.id)
 
 	if err == sql.ErrNoRows {
+
 		statement, err := DB.Prepare("INSERT INTO tags(name) VALUES (?)")
 		if err != nil {
-			return 0, fmt.Errorf("tag error preparing insert statement: '%w'", err)
+			return Tag{}, fmt.Errorf("tag error preparing insert statement: '%w'", err)
 		}
 		defer statement.Close()
 
-		result, err := statement.Exec(tag_name)
+		result, err := statement.Exec(t.name)
 		if err != nil {
-			return 0, fmt.Errorf("tag error executing insert statement: '%w'", err)
+			return Tag{}, fmt.Errorf("tag error executing insert statement: '%w'", err)
 		}
 
-		tag_id, err = result.LastInsertId()
+		t.id, err = result.LastInsertId()
 		if err != nil {
-			return 0, fmt.Errorf("tag error fetching last insert id: '%w'", err)
+			return Tag{}, fmt.Errorf("tag error fetching last insert id: '%w'", err)
 		}
+
 	} else if err != nil {
-		return 0, fmt.Errorf("tag error query tag name: '%w'", err)
+
+		return Tag{}, fmt.Errorf("tag error query tag name: '%w'", err)
+
 	}
 
-	return tag_id, nil
+	return t, nil
 
 }
 

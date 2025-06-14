@@ -23,11 +23,11 @@ func TestDailyCreate(t *testing.T) {
 		expected string
 	}{
 		{name: "daily",
-			spend:    Daily{0, "daily item", 60.0, date, "testing", true},
+			spend:    Daily{0, "daily item", 60.0, date, Tag{name: "testing"}, true},
 			expected: "CREATE: 'daily item 60 11-30-2001 testing'",
 		},
 		{name: "monthly",
-			spend:    Daily{0, "monthly item", 123.0, date, "testing", false},
+			spend:    Daily{0, "monthly item", 123.0, date, Tag{name: "testing"}, false},
 			expected: "CREATE: 'monthly item 60 11-30-2001 testing'",
 		},
 	}
@@ -65,10 +65,10 @@ func TestDailyRead(t *testing.T) {
 		spend Daily
 	}{
 		{name: "daily",
-			spend: Daily{daily_inserted_id, "daily item", 60.0, date, "testing", true},
+			spend: Daily{daily_inserted_id, "daily item", 60.0, date, Tag{name: "testing"}, true},
 		},
 		{name: "monthly",
-			spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, "testing", false},
+			spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, Tag{name: "testing"}, false},
 		},
 	}
 
@@ -100,17 +100,17 @@ func TestDailyEdit(t *testing.T) {
 		{name: "daily",
 			field:           0,
 			value:           "daily replacement",
-			new_value_spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, "testing", true},
+			new_value_spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, Tag{name: "testing"}, true},
 		},
 		{name: "tag replace",
 			field:           3,
 			value:           "tag replacement",
-			new_value_spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, "tag replacement", false},
+			new_value_spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, Tag{name: "tag replacement"}, false},
 		},
 		{name: "monthly",
 			field:           1,
 			value:           456.7,
-			new_value_spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, "tag replacement", false},
+			new_value_spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, Tag{name: "tag replacement"}, false},
 		},
 	}
 
@@ -138,10 +138,10 @@ func TestDailyRemove(t *testing.T) {
 		spend Daily
 	}{
 		{name: "daily",
-			spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, "testing", true},
+			spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, Tag{name: "testing"}, true},
 		},
 		{name: "monthly",
-			spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, "tag replacement", false},
+			spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, Tag{name: "tag replacement"}, false},
 		},
 	}
 
