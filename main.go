@@ -47,6 +47,15 @@ type AheadActions interface {
 	Remove() (Ahead, error)
 }
 
+type Tag struct {
+	id   int64
+	name string
+}
+
+type TagActions interface {
+	Edit(string) (Tag, error)
+}
+
 type Income struct {
 	id     int64
 	amount float64
@@ -54,7 +63,7 @@ type Income struct {
 }
 
 type IncomeActions interface {
-	Add() (Income, error)
+	Create() (Income, error)
 	Edit() (Income, error)
 	Remove() (Income, error)
 }
@@ -453,30 +462,32 @@ func ParseDate(unparsed string) (time.Time, error) {
 }
 
 // TAG
-func TagEdit(target, replace string) (string, error) {
+func (t Tag) Edit(replace string) (Tag, error) {
 
-	target_id, err := GetTagID(target)
+	var err error
+
+	t.id, err = GetTagID(t.name)
 	if err != nil {
-		return "", err
+		return Tag{}, err
 	}
 
 	edit_stmt, err := DB.Prepare("UPDATE tags SET name = ? WHERE id = ?")
 	if err != nil {
-		return "", fmt.Errorf("tag edit error preparing update statement: '%w'", err)
+		return Tag{}, fmt.Errorf("tag edit error preparing update statement: '%w'", err)
 	}
 	defer edit_stmt.Close()
 
-	_, err = edit_stmt.Exec(replace, target_id)
+	_, err = edit_stmt.Exec(replace, t.id)
 	if err != nil {
-		return "", fmt.Errorf("tag edit error executing edit statement: '%w'", err)
+		return Tag{}, fmt.Errorf("tag edit error executing edit statement: '%w'", err)
 	}
 
-	new_tag_value, err := GetTagValue(target_id)
+	t.name, err = GetTagValue(t.id)
 	if err != nil {
-		return "", err
+		return Tag{}, err
 	}
 
-	return new_tag_value, nil
+	return t, nil
 }
 
 func GetTagValue(target_id int64) (string, error) {
@@ -523,7 +534,7 @@ func GetTagID(tag_name string) (int64, error) {
 }
 
 // INCOME
-func (i Income) Add() (Income, error) {
+func (i Income) Create() (Income, error) {
 
 	create_stmt, err := DB.Prepare(`
 		INSERT INTO income(amount, date)

@@ -118,7 +118,6 @@ func TestDailyEdit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := tt.new_value_spend.Edit(tt.field, tt.value)
-
 			if err != nil {
 				t.Error(err)
 			}
@@ -256,32 +255,37 @@ func TestAheadRemove(t *testing.T) {
 func TestTagEdit(t *testing.T) {
 
 	edit_tests := []struct {
-		name     string
-		existing string
-		replace  string
+		name    string
+		tag     Tag
+		replace string
+		new_tag Tag
 	}{
 		{name: "editing",
-			existing: "testing",
-			replace:  "testing tag edit",
+			tag:     Tag{0, "testing"},
+			replace: "testing tag edit",
+			new_tag: Tag{0, "testing tag edit"},
 		},
 		{name: "unnaming",
-			existing: "testing tag edit",
-			replace:  "",
+			tag:     Tag{0, "testing tag edit"},
+			replace: "",
+			new_tag: Tag{0, ""},
 		},
 	}
 
 	for _, tt := range edit_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := TagEdit(tt.existing, tt.replace)
+			got, err := tt.tag.Edit(tt.replace)
 			if err != nil {
 				t.Error(err)
 			}
 
-			want := tt.replace
+			tt.new_tag.id = got.id
+
+			want := tt.new_tag
 
 			if got != want {
-				t.Errorf("got %q want %q", got, want)
+				t.Errorf("got '%#v' want '%#v'", got, want)
 			}
 		})
 	}
@@ -302,7 +306,7 @@ func TestIncomeCreate(t *testing.T) {
 	for _, tt := range create_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.income.Add()
+			got, err := tt.income.Create()
 			if err != nil {
 				t.Error(err)
 			}
