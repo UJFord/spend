@@ -13,13 +13,13 @@ var (
 var date = time.Date(2011, 11, 30, 0, 0, 0, 0, time.Local)
 
 // Daily
-func TestCreate(t *testing.T) {
+func TestDailyCreate(t *testing.T) {
 
 	InitDB()
 
 	create_tests := []struct {
 		name     string
-		spend    DailyActions
+		spend    Daily
 		expected string
 	}{
 		{name: "daily",
@@ -39,10 +39,10 @@ func TestCreate(t *testing.T) {
 
 			if got.isDaily {
 				daily_inserted_id = got.id
-				tt.spend = tt.spend.SetID(daily_inserted_id)
+				tt.spend.id = daily_inserted_id
 			} else {
 				monthly_inserted_id = got.id
-				tt.spend = tt.spend.SetID(monthly_inserted_id)
+				tt.spend.id = monthly_inserted_id
 			}
 
 			if err != nil {
@@ -58,11 +58,11 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestRead(t *testing.T) {
+func TestDailyRead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		spend DailyActions
+		spend Daily
 	}{
 		{name: "daily",
 			spend: Daily{daily_inserted_id, "daily item", 60.0, date, "testing", true},
@@ -75,7 +75,7 @@ func TestRead(t *testing.T) {
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(tt.spend.GetStruct().id)
+			got, err := tt.spend.Read(tt.spend.id)
 			if err != nil {
 				t.Error(err)
 			}
@@ -89,13 +89,13 @@ func TestRead(t *testing.T) {
 	}
 }
 
-func TestEdit(t *testing.T) {
+func TestDailyEdit(t *testing.T) {
 
 	edit_tests := []struct {
 		name            string
 		value           any
 		field           int
-		new_value_spend DailyActions
+		new_value_spend Daily
 	}{
 		{name: "daily",
 			field:           0,
@@ -132,7 +132,7 @@ func TestEdit(t *testing.T) {
 	}
 }
 
-func TestRemove(t *testing.T) {
+func TestDailyRemove(t *testing.T) {
 
 	remove_test := []struct {
 		name  string
@@ -165,11 +165,11 @@ func TestRemove(t *testing.T) {
 }
 
 // Spending Ahead
-func TestCreateAhead(t *testing.T) {
+func TestAheadCreate(t *testing.T) {
 
 	create_tests := []struct {
 		name  string
-		spend AheadActions
+		spend Ahead
 	}{
 		{name: "create",
 			spend: Ahead{0, 999.0, date},
@@ -185,7 +185,7 @@ func TestCreateAhead(t *testing.T) {
 			}
 
 			ahead_inserted_id = got.id
-			tt.spend = tt.spend.SetID(got.id)
+			tt.spend.id = ahead_inserted_id
 
 			want := tt.spend
 
@@ -196,11 +196,11 @@ func TestCreateAhead(t *testing.T) {
 	}
 }
 
-func TestReadAhead(t *testing.T) {
+func TestAheadRead(t *testing.T) {
 
 	read_tests := []struct {
 		name  string
-		spend AheadActions
+		spend Ahead
 	}{
 		{name: "read",
 			spend: Ahead{ahead_inserted_id, 999.0, date},
@@ -224,7 +224,7 @@ func TestReadAhead(t *testing.T) {
 	}
 }
 
-func TestRemoveAhead(t *testing.T) {
+func TestAheadRemove(t *testing.T) {
 
 	remove_tests := []struct {
 		name  string
@@ -282,6 +282,37 @@ func TestTagEdit(t *testing.T) {
 
 			if got != want {
 				t.Errorf("got %q want %q", got, want)
+			}
+		})
+	}
+}
+
+// Income
+func TestIncomeCreate(t *testing.T) {
+
+	create_tests := []struct {
+		name   string
+		income Income
+	}{
+		{name: "10K",
+			income: Income{0, 10000.0, date},
+		},
+	}
+
+	for _, tt := range create_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.income.Add()
+			if err != nil {
+				t.Error(err)
+			}
+
+			tt.income.id = got.id
+
+			want := tt.income
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
 			}
 		})
 	}

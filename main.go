@@ -19,6 +19,80 @@ var (
 	target_db_file string
 )
 
+type Daily struct {
+	id      int64
+	item    string
+	amount  float64
+	date    time.Time
+	tag     string
+	isDaily bool
+}
+
+type DailyActions interface {
+	SetID(int64) Daily
+
+	Create() (Daily, error)
+	Read(int64) (Daily, error)
+	Edit(int, any) (Daily, error)
+	Remove() (Daily, error)
+}
+
+type Ahead struct {
+	id     int64
+	amount float64
+	date   time.Time
+}
+
+type AheadActions interface {
+	SetID(int64) Ahead
+	GetStruct() Ahead
+
+	Create() (Ahead, error)
+	Read(int64) (Ahead, error)
+	Remove() (Ahead, error)
+}
+
+type Forecast struct {
+	daily_total     float64
+	ahead_total     float64
+	income_total    float64
+	daily_forecast  float64
+	daily_mean      float64
+	overshoot_total float64
+}
+
+type ForecastActions interface {
+	Update() (Forecast, error)
+}
+
+type Income struct {
+	id     int64
+	amount float64
+	date   time.Time
+}
+
+type IncomeActions interface {
+	Add() (Income, error)
+	Edit() (Income, error)
+	Remove() (Income, error)
+}
+
+// Set ID
+func (s Daily) SetID(id int64) Daily {
+	s.id = id
+	return s
+}
+
+func (a Ahead) SetID(id int64) Ahead {
+	a.id = id
+	return a
+}
+
+func (i Income) SetID(id int64) Income {
+	i.id = id
+	return i
+}
+
 // Initalize db
 func InitDB() error {
 	target_db_file = "./spend.db"
@@ -60,86 +134,6 @@ func InitDB() error {
 	}
 
 	return nil
-}
-
-type Daily struct {
-	id      int64
-	item    string
-	amount  float64
-	date    time.Time
-	tag     string
-	isDaily bool
-}
-
-type DailyActions interface {
-	SetID(int64) Daily
-	GetStruct() Daily
-
-	Create() (Daily, error)
-	Read(int64) (Daily, error)
-	Edit(int, any) (Daily, error)
-	Remove() (Daily, error)
-}
-
-type Ahead struct {
-	id     int64
-	amount float64
-	date   time.Time
-}
-
-type AheadActions interface {
-	SetID(int64) Ahead
-	GetStruct() Ahead
-
-	Create() (Ahead, error)
-	Read(int64) (Ahead, error)
-	Remove() (Ahead, error)
-}
-
-type Forecast struct {
-	daily_total     float64
-	ahead_total     float64
-	income_total    float64
-	daily_forecast  float64
-	daily_mean      float64
-	overshoot_total float64
-}
-
-type ForecastActions interface {
-	Update() (Forecast, error)
-}
-
-type Income struct {
-	amount float64
-	date   time.Time
-}
-
-type IncomeActions interface {
-	Add(float64) (Income, error)
-	Edit(float64) (Income, error)
-	Remove(float64) (Income, error)
-}
-
-// Set ID
-func (s Daily) SetID(id int64) Daily {
-	s.id = id
-
-	return s
-}
-
-func (a Ahead) SetID(id int64) Ahead {
-	a.id = id
-
-	return a
-}
-
-// Get Struct
-func (s Daily) GetStruct() Daily {
-	return s
-}
-
-func (a Ahead) GetStruct() Ahead {
-	return a
 }
 
 // Create
@@ -550,12 +544,12 @@ func GetTagID(tag_name string) (int64, error) {
 }
 
 // INCOME
-func (i Income) Add(amount float64) (Income, error) {
+func (i Income) Add() (Income, error) {
 
-	create_stmt, err := DB.Prepare(`
-		INSERT INTO spend(amount, date)
-		VALUES(?, ?)
-	`)
+	// create_stmt, err := DB.Prepare(`
+	// 	INSERT INTO spend(amount, date)
+	// 	VALUES(?, ?)
+	// `)
 
 	return Income{}, nil
 }
