@@ -29,8 +29,6 @@ type Daily struct {
 }
 
 type DailyActions interface {
-	SetID(int64) Daily
-
 	Create() (Daily, error)
 	Read(int64) (Daily, error)
 	Edit(int, any) (Daily, error)
@@ -44,25 +42,9 @@ type Ahead struct {
 }
 
 type AheadActions interface {
-	SetID(int64) Ahead
-	GetStruct() Ahead
-
 	Create() (Ahead, error)
 	Read(int64) (Ahead, error)
 	Remove() (Ahead, error)
-}
-
-type Forecast struct {
-	daily_total     float64
-	ahead_total     float64
-	income_total    float64
-	daily_forecast  float64
-	daily_mean      float64
-	overshoot_total float64
-}
-
-type ForecastActions interface {
-	Update() (Forecast, error)
 }
 
 type Income struct {
@@ -77,20 +59,17 @@ type IncomeActions interface {
 	Remove() (Income, error)
 }
 
-// Set ID
-func (s Daily) SetID(id int64) Daily {
-	s.id = id
-	return s
+type Forecast struct {
+	daily_total     float64
+	ahead_total     float64
+	income_total    float64
+	daily_forecast  float64
+	daily_mean      float64
+	overshoot_total float64
 }
 
-func (a Ahead) SetID(id int64) Ahead {
-	a.id = id
-	return a
-}
-
-func (i Income) SetID(id int64) Income {
-	i.id = id
-	return i
+type ForecastActions interface {
+	Update() (Forecast, error)
 }
 
 // Initalize db
@@ -141,7 +120,7 @@ func (s Daily) Create() (Daily, error) {
 
 	tag_id, err := GetTagID(s.tag)
 	if err != nil {
-		return s, fmt.Errorf("create error getting tag id: '%w'", err)
+		return Daily{}, fmt.Errorf("create error getting tag id: '%w'", err)
 	}
 
 	insert_stmt, err := DB.Prepare(fmt.Sprintf(`
@@ -149,18 +128,18 @@ func (s Daily) Create() (Daily, error) {
 		VALUES (?, ?, ?, ?, ?)
 	`))
 	if err != nil {
-		return s, fmt.Errorf("create error preparing insert statement: '%w'", err)
+		return Daily{}, fmt.Errorf("create error preparing insert statement: '%w'", err)
 	}
 	defer insert_stmt.Close()
 
 	exec_insert_stmt, err := insert_stmt.Exec(s.item, s.amount, s.date, tag_id, s.isDaily)
 	if err != nil {
-		return s, fmt.Errorf("create error executing insert statement: '%w'", err)
+		return Daily{}, fmt.Errorf("create error executing insert statement: '%w'", err)
 	}
 
 	s.id, err = exec_insert_stmt.LastInsertId()
 	if err != nil {
-		return s, fmt.Errorf("create error fetching last insert id: '%w'", err)
+		return Daily{}, fmt.Errorf("create error fetching last insert id: '%w'", err)
 	}
 
 	return s, nil
@@ -546,12 +525,26 @@ func GetTagID(tag_name string) (int64, error) {
 // INCOME
 func (i Income) Add() (Income, error) {
 
-	// create_stmt, err := DB.Prepare(`
-	// 	INSERT INTO spend(amount, date)
-	// 	VALUES(?, ?)
-	// `)
+	create_stmt, err := DB.Prepare(`
+		INSERT INTO income(amount, date)
+		VALUES(?, ?)
+	`)
+	if err != nil {
+		return Income{}, fmt.Errorf("income add error preparing create statement: '%w'", err)
+	}
+	defer create_stmt.Close()
 
-	return Income{}, nil
+	exec_create_stmt, err := create_stmt.Exec(i.amount, i.date)
+	if err != nil {
+		return Income{}, fmt.Errorf("income add error executing create statement: '%w'", err)
+	}
+
+	i.id, err = exec_create_stmt.LastInsertId()
+	if err != nil {
+		return Income{}, fmt.Errorf("income add error fetching last insert id: '%w'", err)
+	}
+
+	return i, nil
 }
 
 func main() {
