@@ -188,40 +188,23 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 
 	get := DB.QueryRow("SELECT item, amount, date, tag_id, is_daily FROM spend WHERE id=?", target_id)
 
-	var result [5]string
-	err := get.Scan(&result[0], &result[1], &result[2], &result[3], &result[4])
+	var unparsed_date string
+	err := get.Scan(&s.item, &s.amount, &unparsed_date, &s.tag.id, &s.isDaily)
 	if err != nil {
 		return Daily{}, fmt.Errorf("read error scanning read query: '%w'", err)
 	}
 
 	s.id = target_id
-	s.item = result[0]
-
-	s.amount, err = strconv.ParseFloat(result[1], 64)
-	if err != nil {
-		return Daily{}, fmt.Errorf("read error converting amount to float: '%w'", err)
-	}
 
 	layout := "2006-01-02 15:04:05-07:00"
-	s.date, err = time.Parse(layout, result[2])
+	s.date, err = time.Parse(layout, unparsed_date)
 	if err != nil {
 		return Daily{}, fmt.Errorf("read error parsing date from db: '%w'", err)
-	}
-
-	s.tag.id, err = strconv.ParseInt(result[3], 10, 64)
-	if err != nil {
-		return Daily{}, fmt.Errorf("read error converting tag_id string to int: '%w'", err)
 	}
 
 	s.tag, err = s.tag.SetValue()
 	if err != nil {
 		return Daily{}, err
-	}
-
-	if result[4] == "1" {
-		s.isDaily = true
-	} else {
-		s.isDaily = false
 	}
 
 	return s, nil
@@ -230,23 +213,16 @@ func (s Daily) Read(target_id int64) (Daily, error) {
 func (a Ahead) Read(target_id int64) (Ahead, error) {
 	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
 
-	var result [2]string
-	err := get.Scan(&result[0], &result[1])
+	var unparsed_date string
+	err := get.Scan(&a.amount, &unparsed_date)
 	if err != nil {
 		return Ahead{}, fmt.Errorf("read ahead error scanning query stetement: '%w'", err)
 	}
 
-	parsed_amount, err := strconv.ParseFloat(result[0], 64)
-	if err != nil {
-		return Ahead{}, fmt.Errorf("read ahead error parsing amount to float: '%w'", err)
-	}
-
 	a.id = target_id
 
-	a.amount = parsed_amount
-
 	layout := "2006-01-02 15:04:05-07:00"
-	a.date, err = time.Parse(layout, result[1])
+	a.date, err = time.Parse(layout, unparsed_date)
 	if err != nil {
 		return Ahead{}, fmt.Errorf("read error parsing date from db: '%w'", err)
 	}
