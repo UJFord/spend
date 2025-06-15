@@ -68,7 +68,7 @@ type Income struct {
 type IncomeActions interface {
 	Create() (Income, error)
 	Read() (Income, error)
-	Edit() (Income, error)
+	Edit(int, any) (Income, error)
 	Remove() (Income, error)
 }
 
@@ -559,6 +559,10 @@ func (i Income) Read() (Income, error) {
 	}
 
 	return i, nil
+}
+
+func (i Income) Edit(target int, value any) (Income, error) {
+	return Income{}, nil
 }
 
 func main() {

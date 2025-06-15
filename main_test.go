@@ -1,8 +1,6 @@
 package main
 
 import (
-	// "fmt"
-	// "strings"
 	"testing"
 	"time"
 )
@@ -14,6 +12,7 @@ var (
 	income_inserted_id  int64
 )
 var date = time.Date(2011, 11, 30, 0, 0, 0, 0, time.Local)
+var new_date = time.Date(2012, 12, 30, 0, 0, 0, 0, time.Local)
 
 // Daily
 func TestDailyCreate(t *testing.T) {
@@ -38,7 +37,10 @@ func TestDailyCreate(t *testing.T) {
 
 			got, err := tt.spend.Create()
 
-			tt.spend.tag.id = got.tag.id
+			tt.spend.tag, err = tt.spend.tag.SetID()
+			if err != nil {
+				t.Error(err)
+			}
 
 			if got.isDaily {
 				daily_inserted_id = got.id
@@ -84,7 +86,10 @@ func TestDailyRead(t *testing.T) {
 				t.Error(err)
 			}
 
-			tt.spend.tag.id = got.tag.id
+			tt.spend.tag, err = tt.spend.tag.SetID()
+			if err != nil {
+				t.Error(err)
+			}
 
 			want := tt.spend
 
@@ -98,39 +103,53 @@ func TestDailyRead(t *testing.T) {
 func TestDailyEdit(t *testing.T) {
 
 	edit_tests := []struct {
-		name            string
-		value           any
-		field           int
-		new_value_spend Daily
+		name   string
+		before Daily
+		value  any
+		field  int
+		after  Daily
 	}{
 		{name: "daily",
-			field:           0,
-			value:           "daily replacement",
-			new_value_spend: Daily{daily_inserted_id, "daily replacement", 60.0, date, Tag{name: "testing"}, true},
+			before: Daily{id: daily_inserted_id},
+			field:  0,
+			value:  "daily replacement",
+			after:  Daily{daily_inserted_id, "daily replacement", 60.0, date, Tag{name: "testing"}, true},
 		},
 		{name: "tag replace",
-			field:           3,
-			value:           "tag replacement",
-			new_value_spend: Daily{monthly_inserted_id, "monthly item", 123.0, date, Tag{name: "tag replacement"}, false},
+			before: Daily{id: monthly_inserted_id},
+			field:  3,
+			value:  "tag replacement",
+			after:  Daily{monthly_inserted_id, "monthly item", 123.0, date, Tag{name: "tag replacement"}, false},
 		},
 		{name: "monthly",
-			field:           1,
-			value:           456.7,
-			new_value_spend: Daily{monthly_inserted_id, "monthly item", 456.7, date, Tag{name: "tag replacement"}, false},
+			before: Daily{id: monthly_inserted_id},
+			field:  1,
+			value:  456.7,
+			after:  Daily{monthly_inserted_id, "monthly item", 456.7, date, Tag{name: "tag replacement"}, false},
 		},
 	}
 
 	for _, tt := range edit_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.new_value_spend.Edit(tt.field, tt.value)
+			var err error
+
+			tt.before, err = tt.before.Read(tt.before.id)
 			if err != nil {
 				t.Error(err)
 			}
 
-			tt.new_value_spend.tag.id = got.tag.id
+			got, err := tt.before.Edit(tt.field, tt.value)
+			if err != nil {
+				t.Error(err)
+			}
 
-			want := tt.new_value_spend
+			tt.after.tag, err = tt.after.tag.SetID()
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.after
 
 			if got != want {
 				t.Errorf("got %#v want %#v", got, want)
@@ -352,6 +371,46 @@ func TestIncomeRead(t *testing.T) {
 			}
 
 			want := tt.income
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
+
+func TestIncomeEdit(t *testing.T) {
+
+	edit_tests := []struct {
+		name         string
+		before       Income
+		target_field int
+		value        any
+		after        Income
+	}{
+		{name: "amount",
+			before:       Income{id: income_inserted_id},
+			target_field: 0,
+			value:        6969.7,
+			after:        Income{income_inserted_id, 6969.7, date},
+		},
+		{name: "date",
+			before:       Income{id: income_inserted_id},
+			target_field: 1,
+			value:        new_date,
+			after:        Income{income_inserted_id, 6969.7, new_date},
+		},
+	}
+
+	for _, tt := range edit_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.before.Edit(tt.target_field, tt.value)
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.after
 
 			if got != want {
 				t.Errorf("got '%#v' want '%#v'", got, want)
