@@ -67,6 +67,7 @@ type Income struct {
 
 type IncomeActions interface {
 	Create() (Income, error)
+	Read() (Income, error)
 	Edit() (Income, error)
 	Remove() (Income, error)
 }
@@ -347,7 +348,6 @@ func (a Ahead) Remove() (Ahead, error) {
 }
 
 // Forecast
-
 func (f Forecast) Update() (Forecast, error) {
 	// ahead sum
 	get_total := func(table string) (float64, error) {
@@ -561,6 +561,25 @@ func (i Income) Create() (Income, error) {
 	i.id, err = exec_create_stmt.LastInsertId()
 	if err != nil {
 		return Income{}, fmt.Errorf("income add error fetching last insert id: '%w'", err)
+	}
+
+	return i, nil
+}
+
+func (i Income) Read() (Income, error) {
+
+	get := DB.QueryRow("SELECT amount, date FROM income WHERE id=?", i.id)
+
+	var unparsed_date string
+	err := get.Scan(&i.amount, &unparsed_date)
+	if err != nil {
+		return Income{}, fmt.Errorf("read ahead error scanning query stetement: '%w'", err)
+	}
+
+	layout := "2006-01-02 15:04:05-07:00"
+	i.date, err = time.Parse(layout, unparsed_date)
+	if err != nil {
+		return Income{}, fmt.Errorf("read error parsing date from db: '%w'", err)
 	}
 
 	return i, nil

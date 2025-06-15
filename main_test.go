@@ -8,7 +8,10 @@ import (
 )
 
 var (
-	daily_inserted_id, monthly_inserted_id, ahead_inserted_id int64
+	daily_inserted_id   int64
+	monthly_inserted_id int64
+	ahead_inserted_id   int64
+	income_inserted_id  int64
 )
 var date = time.Date(2011, 11, 30, 0, 0, 0, 0, time.Local)
 
@@ -317,7 +320,36 @@ func TestIncomeCreate(t *testing.T) {
 				t.Error(err)
 			}
 
-			tt.income.id = got.id
+			income_inserted_id = got.id
+			tt.income.id = income_inserted_id
+
+			want := tt.income
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}
+
+func TestIncomeRead(t *testing.T) {
+
+	read_tests := []struct {
+		name   string
+		income Income
+	}{
+		{name: "10K",
+			income: Income{income_inserted_id, 10000.0, date},
+		},
+	}
+
+	for _, tt := range read_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.income.Read()
+			if err != nil {
+				t.Error(err)
+			}
 
 			want := tt.income
 
