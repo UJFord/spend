@@ -23,12 +23,10 @@ func TestDailyCreate(t *testing.T) {
 		expected string
 	}{
 		{name: "daily",
-			spend:    Daily{0, "daily item", 60.0, date, Tag{name: "testing"}, true},
-			expected: "CREATE: 'daily item 60 11-30-2001 testing'",
+			spend: Daily{0, "daily item", 60.0, date, Tag{name: "testing"}, true},
 		},
 		{name: "monthly",
-			spend:    Daily{0, "monthly item", 123.0, date, Tag{name: "testing"}, false},
-			expected: "CREATE: 'monthly item 60 11-30-2001 testing'",
+			spend: Daily{0, "monthly item", 123.0, date, Tag{name: "testing"}, false},
 		},
 	}
 
@@ -37,10 +35,13 @@ func TestDailyCreate(t *testing.T) {
 
 			got, err := tt.spend.Create()
 
+			tt.spend.tag.id = got.tag.id
+
 			if got.isDaily {
 				daily_inserted_id = got.id
 				tt.spend.id = daily_inserted_id
 			} else {
+
 				monthly_inserted_id = got.id
 				tt.spend.id = monthly_inserted_id
 			}
@@ -79,6 +80,8 @@ func TestDailyRead(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+
+			tt.spend.tag.id = got.tag.id
 
 			want := tt.spend
 
@@ -122,6 +125,8 @@ func TestDailyEdit(t *testing.T) {
 				t.Error(err)
 			}
 
+			tt.new_value_spend.tag.id = got.tag.id
+
 			want := tt.new_value_spend
 
 			if got != want {
@@ -149,10 +154,11 @@ func TestDailyRemove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := tt.spend.Remove()
-
 			if err != nil {
 				t.Error(err)
 			}
+
+			tt.spend.tag.id = got.tag.id
 
 			want := tt.spend
 
