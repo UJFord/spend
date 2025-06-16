@@ -250,7 +250,9 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 	case 3:
 		target = "tag_id"
 
-		if _, ok := replace_value.(string); ok {
+		if str_value, ok := replace_value.(string); ok {
+
+			s.tag.name = str_value
 
 			s.tag, err = s.tag.SetID()
 			if err != nil {
@@ -258,6 +260,7 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 			}
 
 			replace_value = strconv.FormatInt(s.tag.id, 10)
+
 		}
 	case 4:
 		target = "is_daily"
@@ -448,28 +451,29 @@ func (t Tag) Edit(replace string) (Tag, error) {
 
 	var err error
 
-	t, err = t.SetID()
+	t_old, err := t.SetID()
 	if err != nil {
 		return Tag{}, err
 	}
 
-	edit_stmt, err := DB.Prepare("UPDATE tags SET name = ? WHERE id = ?")
-	if err != nil {
-		return Tag{}, fmt.Errorf("tag edit error preparing update statement: '%w'", err)
-	}
-	defer edit_stmt.Close()
-
-	_, err = edit_stmt.Exec(replace, t.id)
-	if err != nil {
-		return Tag{}, fmt.Errorf("tag edit error executing edit statement: '%w'", err)
-	}
-
-	t, err = t.SetValue()
+	t_new := Tag{name: replace}
+	t_new, err = t_new.SetID()
 	if err != nil {
 		return Tag{}, err
 	}
 
-	return t, nil
+	replace_stmt, err := DB.Prepare("UPDATE spend SET tag_id = ? WHERE tag_id = ?")
+	if err != nil {
+		return Tag{}, fmt.Errorf("tag edit error preparing replace statement: '%w'", err)
+	}
+	defer replace_stmt.Close()
+
+	_, err = replace_stmt.Exec(t_new.id, t_old.id)
+	if err != nil {
+		return Tag{}, fmt.Errorf("tag edit error executing replace statement: '%w'", err)
+	}
+
+	return t_new, nil
 }
 
 func (t Tag) SetValue() (Tag, error) {

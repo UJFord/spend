@@ -1,6 +1,7 @@
 package main
 
 import (
+	// "fmt"
 	"testing"
 	"time"
 )
@@ -138,6 +139,7 @@ func TestDailyEdit(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			// fmt.Println(tt.before)
 
 			got, err := tt.before.Edit(tt.field, tt.value)
 			if err != nil {
