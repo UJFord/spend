@@ -184,17 +184,15 @@ func (a Ahead) Create() (Ahead, error) {
 }
 
 // Get info by id
-func (s Daily) Read(target_id int64) (Daily, error) {
+func (s Daily) Read() (Daily, error) {
 
-	get := DB.QueryRow("SELECT item, amount, date, tag_id, is_daily FROM spend WHERE id=?", target_id)
+	get := DB.QueryRow("SELECT item, amount, date, tag_id, is_daily FROM spend WHERE id=?", s.id)
 
 	var unparsed_date string
 	err := get.Scan(&s.item, &s.amount, &unparsed_date, &s.tag.id, &s.isDaily)
 	if err != nil {
 		return Daily{}, fmt.Errorf("read error scanning read query: '%w'", err)
 	}
-
-	s.id = target_id
 
 	layout := "2006-01-02 15:04:05-07:00"
 	s.date, err = time.Parse(layout, unparsed_date)
@@ -236,7 +234,7 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 	var err error
 
 	if target_field < 0 || target_field > 4 {
-		log.Fatalf("EDIT error choosing target info: Out of Bounds")
+		return Daily{}, errors.New("EDIT error choosing target info: Out of Bounds")
 	}
 
 	var target string
@@ -277,7 +275,7 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 		return Daily{}, fmt.Errorf("edit error executing edit statement: '%w'", err)
 	}
 
-	s, err = s.Read(s.id)
+	s, err = s.Read()
 	if err != nil {
 		return Daily{}, err
 	}
@@ -288,7 +286,7 @@ func (s Daily) Edit(target_field int, replace_value any) (Daily, error) {
 // Remove spend
 func (s Daily) Remove() (Daily, error) {
 
-	s, err := s.Read(s.id)
+	s, err := s.Read()
 	if err != nil {
 		return Daily{}, err
 	}
@@ -565,8 +563,39 @@ func (i Income) Read() (Income, error) {
 	return i, nil
 }
 
-func (i Income) Edit(target int, value any) (Income, error) {
-	return Income{}, nil
+func (i Income) Edit(target_field int, value any) (Income, error) {
+
+	var err error
+
+	if target_field < 0 || target_field > 1 {
+		return Income{}, errors.New("EDIT error choosing target info: Out of Bounds")
+	}
+
+	var target string
+	switch target_field {
+	case 0:
+		target = "amount"
+	case 1:
+		target = "date"
+	}
+
+	edit_stmt, err := DB.Prepare(fmt.Sprintf("UPDATE income SET %s=? WHERE id=?", target))
+	if err != nil {
+		return Income{}, fmt.Errorf("edit error preparing edit statement: '%w'", err)
+	}
+	defer edit_stmt.Close()
+
+	_, err = edit_stmt.Exec(value, i.id)
+	if err != nil {
+		return Income{}, fmt.Errorf("edit error executing edit statement: '%w'", err)
+	}
+
+	i, err = i.Read()
+	if err != nil {
+		return Income{}, err
+	}
+
+	return i, nil
 }
 
 func main() {

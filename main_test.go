@@ -82,7 +82,7 @@ func TestDailyRead(t *testing.T) {
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(tt.spend.id)
+			got, err := tt.spend.Read()
 			if err != nil {
 				t.Error(err)
 			}
@@ -135,7 +135,7 @@ func TestDailyEdit(t *testing.T) {
 
 			var err error
 
-			tt.before, err = tt.before.Read(tt.before.id)
+			tt.before, err = tt.before.Read()
 			if err != nil {
 				t.Error(err)
 			}
@@ -420,3 +420,5 @@ func TestIncomeEdit(t *testing.T) {
 		})
 	}
 }
+
+func TestIncomeRemove(t *testing.T) {}
