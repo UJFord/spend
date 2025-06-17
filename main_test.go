@@ -239,7 +239,7 @@ func TestAheadRead(t *testing.T) {
 	for _, tt := range read_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(ahead_inserted_id)
+			got, err := tt.spend.Read()
 			if err != nil {
 				t.Error(err)
 			}
@@ -267,7 +267,7 @@ func TestAheadRemove(t *testing.T) {
 	for _, tt := range remove_tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.spend.Read(tt.spend.id)
+			got, err := tt.spend.Read()
 			if err != nil {
 				t.Error(err)
 			}
@@ -421,4 +421,29 @@ func TestIncomeEdit(t *testing.T) {
 	}
 }
 
-func TestIncomeRemove(t *testing.T) {}
+func TestIncomeRemove(t *testing.T) {
+
+	remove_tests := []struct {
+		name   string
+		income Income
+	}{
+		{name: "remove created",
+			income: Income{income_inserted_id, 6969.7, new_date}},
+	}
+
+	for _, tt := range remove_tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.income.Remove()
+			if err != nil {
+				t.Error(err)
+			}
+
+			want := tt.income
+
+			if got != want {
+				t.Errorf("got '%#v' want '%#v'", got, want)
+			}
+		})
+	}
+}

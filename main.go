@@ -30,7 +30,7 @@ type Daily struct {
 
 type DailyActions interface {
 	Create() (Daily, error)
-	Read(int64) (Daily, error)
+	Read() (Daily, error)
 	Edit(int, any) (Daily, error)
 	Remove() (Daily, error)
 }
@@ -43,7 +43,7 @@ type Ahead struct {
 
 type AheadActions interface {
 	Create() (Ahead, error)
-	Read(int64) (Ahead, error)
+	Read() (Ahead, error)
 	Remove() (Ahead, error)
 }
 
@@ -208,16 +208,14 @@ func (s Daily) Read() (Daily, error) {
 	return s, nil
 }
 
-func (a Ahead) Read(target_id int64) (Ahead, error) {
-	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", target_id)
+func (a Ahead) Read() (Ahead, error) {
+	get := DB.QueryRow("SELECT amount, date FROM ahead WHERE id=?", a.id)
 
 	var unparsed_date string
 	err := get.Scan(&a.amount, &unparsed_date)
 	if err != nil {
 		return Ahead{}, fmt.Errorf("read ahead error scanning query stetement: '%w'", err)
 	}
-
-	a.id = target_id
 
 	layout := "2006-01-02 15:04:05-07:00"
 	a.date, err = time.Parse(layout, unparsed_date)
@@ -306,7 +304,7 @@ func (s Daily) Remove() (Daily, error) {
 
 func (a Ahead) Remove() (Ahead, error) {
 
-	a, err := a.Read(a.id)
+	a, err := a.Read()
 	if err != nil {
 		return Ahead{}, err
 	}
@@ -593,6 +591,26 @@ func (i Income) Edit(target_field int, value any) (Income, error) {
 	i, err = i.Read()
 	if err != nil {
 		return Income{}, err
+	}
+
+	return i, nil
+}
+
+func (i Income) Remove() (Income, error) {
+
+	i, err := i.Read()
+	if err != nil {
+		return Income{}, err
+	}
+
+	delete_stmt, err := DB.Prepare("DELETE FROM income WHERE id=?")
+	if err != nil {
+		return Income{}, fmt.Errorf("remove error preparing delete statement: '%w'", err)
+	}
+
+	_, err = delete_stmt.Exec(i.id)
+	if err != nil {
+		return Income{}, fmt.Errorf("remove error executing delete statement: '%w'", err)
 	}
 
 	return i, nil
