@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"strconv"
 	"strings"
@@ -618,14 +617,4 @@ func (i Income) Remove() (Income, error) {
 
 func main() {
 
-	if err := InitDB(); err != nil {
-		log.Fatal(err)
-	}
-
-	f := Forecast{}
-	if f, err := f.Update(); err != nil {
-		log.Fatal(err)
-	} else {
-		fmt.Println(f)
-	}
 }
