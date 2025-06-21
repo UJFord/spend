@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -445,4 +446,9 @@ func TestIncomeRemove(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestForecast(t *testing.T) {
+	f := Forecast{}
+	fmt.Println(f.Update())
 }
