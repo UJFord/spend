@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"spend/cmd/spend"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -21,7 +22,9 @@ func initialModel() model {
 	}
 }
 
+// Initialize DB
 func (m model) Init() tea.Cmd {
+	spend.InitDB()
 	return nil
 }
 

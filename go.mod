@@ -1,4 +1,4 @@
-module spend.com
+module spend
 
 go 1.24.2
 
